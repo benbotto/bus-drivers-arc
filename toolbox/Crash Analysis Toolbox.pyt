@@ -6,6 +6,7 @@ class Toolbox(object):
     .pyt file)."""
     self.label = "Crash Analysis Toolbox"
     self.alias = "crashAnalysis"
+    arcpy.env.overwriteOutput = True #allows tool to be ran again if user decides to. will need to assess for recursive tools
 
     # List of tool classes associated with this toolbox
     self.tools = [CrashRadiusDensity]
