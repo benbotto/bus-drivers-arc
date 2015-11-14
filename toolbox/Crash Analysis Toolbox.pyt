@@ -143,35 +143,46 @@ class CrashNetworkDensity(object):
     # Load the OpenStreetMap toolbox.
     arcpy.ImportToolbox(r"C:\Program Files (x86)\ArcGIS\Desktop10.3\ArcToolbox\Toolboxes\OpenStreetMap Toolbox.tbx")
 
-    ##
-    # Get the window extents.
-    ##
-
     # This is the current map, which should be an OSM base map.
     curMapDoc = arcpy.mapping.MapDocument("CURRENT")
 
-    # Get the datafrom from the map (see the DataFrame object of arcpy).
+    # Get the data from from the map (see the DataFrame object of arcpy).
     # The DataFrame object has an "extent" object that has the XMin, XMax, YMin, and YMax.
     dataFrame = arcpy.mapping.ListDataFrames(curMapDoc, "Layers")[0]
     extent    = dataFrame.extent
 
+    messages.addMessage("Using window extents.")
     messages.addMessage("XMin: {0}, XMax: {1}, YMin: {2}, YMax: {3}".format(extent.XMin, extent.XMax, extent.YMin, extent.YMax))
 
     # Download the data from OSM.
+    # TODO - OSM Data name should be created by the user.
     arcpy.DownloadExtractSymbolizeOSMData2_osmtools(extent, True, "OSM_SAC_TEST", "OSMLayer")
 
-    ##
     # Convert the OSM data to a network dataset.
-    ##
     arcpy.OSMGPCreateNetworkDataset_osmtools("OSM_SAC_TEST", r"DriveGeneric.xml", r"ND")
 
-    ###
-    # Create the OD Cost Matrix layer.
-    ###
-    network = "OSM_SAC_TEST_ND"
-    result = arcpy.na.MakeODCostMatrixLayer(network, "OD Cost Matrix", "DriveTime")
-    layerObj = result.getOutput(0)
-    arcpy.mapping.AddLayer(dataFrame, layerObj, "BOTTOM")
+    # Create the OD Cost Matrix layer and get a refrence to the layer.
+    result    = arcpy.na.MakeODCostMatrixLayer("OSM_SAC_TEST_ND", "OD Cost Matrix", "DriveTime")
+    odcmLayer = result.getOutput(0)
+
+    # The OD Cost Matrix layer will have Origins and Destinations layers.  Get
+    # a reference to each of these.
+    odcmSublayers   = arcpy.na.GetNAClassNames(odcmLayer)
+    odcmOriginLayer = odcmSublayers["Origins"]
+    odcmDestLayer   = odcmSublayers["Destinations"]
+
+    # Add the origins.
+    # TODO - "Collisions" should be selected by the user.
+    # TODO - 300 Meters should be selected by the user.
+    arcpy.na.AddLocations(odcmLayer, odcmOriginLayer, "Collisions", "", "300 Meters")
+    arcpy.na.AddLocations(odcmLayer, odcmDestLayer,   "Collisions", "", "300 Meters")
+
+    # Solve the matrix.
+    arcpy.na.Solve(odcmLayer)
+
+    # Show ODCM layer to the user.
+    arcpy.mapping.AddLayer(dataFrame, odcmLayer, "TOP")
+
     return
 
 
