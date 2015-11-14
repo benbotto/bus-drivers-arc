@@ -1,5 +1,5 @@
-
 import arcpy
+from arcpy import env
 
 class Toolbox(object):
   def __init__(self):
@@ -10,7 +10,7 @@ class Toolbox(object):
     arcpy.env.overwriteOutput = True #allows tool to be ran again if user decides to. will need to assess for recursive tools
 
     # List of tool classes associated with this toolbox
-    self.tools = [CrashRadiusDensity]
+    self.tools = [CrashRadiusDensity,CrashNetworkDensity]
 
 
 class CrashRadiusDensity(object):
@@ -22,14 +22,14 @@ class CrashRadiusDensity(object):
   
   def getParameterInfo(self):
   
-	# First parameter, input features (geodatabase)
+    # First parameter, input features (geodatabase)
     in_features = arcpy.Parameter(
         displayName="Input Features",
         name="in_features",
         datatype="Feature Layer",
         parameterType="Required",
         direction="Input")
-	
+  
     # Second parameter, input radius magnitude
     radius_magnitude = arcpy.Parameter(
         displayName="Radius Magnitude",
@@ -89,9 +89,9 @@ class CrashRadiusDensity(object):
     # Create a buffer around each point.
     bufferFeature = featureDesc.catalogPath + "_buffer"
     messages.addMessage("Adding buffer to {0}".format(bufferFeature))
-	
+  
     arcpy.Buffer_analysis(featureName, bufferFeature, featureRadius)
-	
+  
     # Join the collision data and the collision buffer.
     #Here is where we would change the _sum file names.
     sumFeature = featureloc + "_sum"
@@ -111,3 +111,67 @@ class CrashRadiusDensity(object):
     arcpy.RefreshTOC()
     '''
     return
+
+
+
+class CrashNetworkDensity(object):
+
+  def __init__(self):
+    self.label = "CrashNetworkDensity"
+    self.description = "Finds the density of crashes using an auto-generated network dataset."
+    self.canRunInBackground = False
+  
+  def getParameterInfo(self):
+    return []
+
+  def isLicensed(self):
+    """Set whether tool is licensed to execute."""
+    return True
+
+  def updateParameters(self, parameters):
+    """Modify the values and properties of parameters before internal
+    validation is performed.  This method is called whenever a parameter
+    has been changed."""
+    return
+
+  def updateMessages(self, parameters):
+    """Modify the messages created by internal validation for each tool
+    parameter.  This method is called after internal validation."""
+    return
+
+  def execute(self, parameters, messages):
+    # Load the OpenStreetMap toolbox.
+    arcpy.ImportToolbox(r"C:\Program Files (x86)\ArcGIS\Desktop10.3\ArcToolbox\Toolboxes\OpenStreetMap Toolbox.tbx")
+
+    ##
+    # Get the window extents.
+    ##
+
+    # This is the current map, which should be an OSM base map.
+    curMapDoc = arcpy.mapping.MapDocument("CURRENT")
+
+    # Get the datafrom from the map (see the DataFrame object of arcpy).
+    # The DataFrame object has an "extent" object that has the XMin, XMax, YMin, and YMax.
+    dataFrame = arcpy.mapping.ListDataFrames(curMapDoc, "Layers")[0]
+    extent    = dataFrame.extent
+
+    messages.addMessage("XMin: {0}, XMax: {1}, YMin: {2}, YMax: {3}".format(extent.XMin, extent.XMax, extent.YMin, extent.YMax))
+
+    # Download the data from OSM.
+    arcpy.DownloadExtractSymbolizeOSMData2_osmtools(extent, True, "OSM_SAC_TEST", "OSMLayer")
+
+    ##
+    # Convert the OSM data to a network dataset.
+    ##
+    arcpy.OSMGPCreateNetworkDataset_osmtools("OSM_SAC_TEST", r"DriveGeneric.xml", r"ND")
+
+    ###
+    # Create the OD Cost Matrix layer.
+    ###
+    network = "OSM_SAC_TEST_ND"
+    result = arcpy.na.MakeODCostMatrixLayer(network, "OD Cost Matrix", "DriveTime")
+    layerObj = result.getOutput(0)
+    arcpy.mapping.AddLayer(dataFrame, layerObj, "BOTTOM")
+    return
+
+
