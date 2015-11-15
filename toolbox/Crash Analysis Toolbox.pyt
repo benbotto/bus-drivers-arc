@@ -140,9 +140,6 @@ class CrashNetworkDensity(object):
     return
 
   def execute(self, parameters, messages):
-    # Load the OpenStreetMap toolbox.
-    arcpy.ImportToolbox(r"C:\Program Files (x86)\ArcGIS\Desktop10.3\ArcToolbox\Toolboxes\OpenStreetMap Toolbox.tbx")
-
     # This is the current map, which should be an OSM base map.
     curMapDoc = arcpy.mapping.MapDocument("CURRENT")
 
