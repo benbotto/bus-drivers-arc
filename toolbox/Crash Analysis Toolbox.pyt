@@ -22,29 +22,36 @@ class CrashRadiusDensity(object):
   
   def getParameterInfo(self):
   
-    # First parameter, input features (geodatabase)
+	# First parameter, input features (geodatabase)
     in_features = arcpy.Parameter(
         displayName="Input Features",
         name="in_features",
         datatype="Feature Layer",
         parameterType="Required",
         direction="Input")
-  
-    # Second parameter, input radius magnitude
-    radius_magnitude = arcpy.Parameter(
-        displayName="Radius Magnitude",
-        name="radius_magnitude",
-        datatype="String",
-        parameterType="Required",
-        direction="Input")
 
-    # Third parameter, input radius units
+	# Second parameter, input radius units
     radius_units = arcpy.Parameter(
         displayName="Radius Units",
         name="radius_units",
         datatype="String",
         parameterType="Required",
         direction="Input")
+
+    radius_units.filter.type = "ValueList"
+    radius_units.filter.list = ["METERS", "FEET", "KILOMETERS", "MILES"]
+    radius_units.value = "METERS"
+	
+    # Third parameter, input radius magnitude
+    radius_magnitude = arcpy.Parameter(
+        displayName="Radius Magnitude",
+        name="radius_magnitude",
+        datatype="GPLong",
+        parameterType="Required",
+        direction="Input")
+    radius_magnitude.filter.type = "Range"
+    radius_magnitude.filter.list = [1,2000]
+    radius_magnitude.value = 1000
 
     # Fourth parameter, _sum location
     sum_location = arcpy.Parameter(
@@ -54,7 +61,10 @@ class CrashRadiusDensity(object):
         parameterType="Required",
         direction="Input")
     #put the parameters in an array, for future use
-    params = [in_features,radius_magnitude,radius_units,sum_location]
+    params = [in_features,radius_units,radius_magnitude,sum_location]
+    
+  
+
     return params
 
   def isLicensed(self):
@@ -65,17 +75,46 @@ class CrashRadiusDensity(object):
     """Modify the values and properties of parameters before internal
     validation is performed.  This method is called whenever a parameter
     has been changed."""
+
+    if parameters[1].value == "METERS":
+		parameters[2].filter.list = [1,2000]
+                if parameters[2].value > 2000:
+			parameters[2].value = 1000
+
+    elif parameters[1].value == "FEET":
+		parameters[2].filter.list = [1,6000]
+		if parameters[2].value > 6000:
+			parameters[2].value = 3000
+
+    elif parameters[1].value == "MILES":
+		parameters[2].filter.list = [1,50]
+		if parameters[2].value > 50:
+			parameters[2].value = 25
+
+    elif parameters[1].value == "KILOMETERS":
+		parameters[2].filter.list = [1,100]
+		if parameters[2].value > 100:
+			parameters[2].value = 50
+    
     return
 
   def updateMessages(self, parameters):
     """Modify the messages created by internal validation for each tool
     parameter.  This method is called after internal validation."""
+
+    if parameters[1].hasError():
+		parameters[1].setErrorMessage("The input you have entered is invalid. Please select one of the available units from the drop down menu.")
+    
+
     return
 
   def execute(self, parameters, messages):
+    
+   
+
     # This is the feature (table) name that we're working with.
     featureName = parameters[0].valueAsText#the gdb file
-    featureRadius = parameters[1].valueAsText + " " + parameters[2].valueAsText#the radius, with magnitude and units
+    featureRadius = parameters[2].valueAsText + " " + parameters[1].valueAsText#the radius, with magnitude and units
     featureloc = parameters[3].valueAsText
     featureDesc = arcpy.Describe(featureName)
     messages.addMessage("Adding field 'Count' to feature {0}".format(featureName))
@@ -89,9 +128,9 @@ class CrashRadiusDensity(object):
     # Create a buffer around each point.
     bufferFeature = featureDesc.catalogPath + "_buffer"
     messages.addMessage("Adding buffer to {0}".format(bufferFeature))
-  
+	
     arcpy.Buffer_analysis(featureName, bufferFeature, featureRadius)
-  
+	
     # Join the collision data and the collision buffer.
     #Here is where we would change the _sum file names.
     sumFeature = featureloc + "_sum"
@@ -111,7 +150,6 @@ class CrashRadiusDensity(object):
     arcpy.RefreshTOC()
     '''
     return
-
 
 
 class CrashNetworkDensity(object):
