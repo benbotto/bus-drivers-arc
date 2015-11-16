@@ -169,7 +169,7 @@ class CrashNetworkDensity(object):
     in_table1 = arcpy.Parameter(
         displayName="Input Origin Feature Dataset",
         name="in_table1",
-        datatype="DEFeatureDataset",
+        datatype="DEFeatureClass",
         parameterType="Required",
         direction="Input")
 
@@ -200,7 +200,7 @@ class CrashNetworkDensity(object):
     in_table2 = arcpy.Parameter(
         displayName="Input Destination Feature Dataset",
         name="in_table2",
-        datatype="DEFeatureDataset",
+        datatype="DEFeatureClass",
         parameterType="Required",
         direction="Input")
 
@@ -310,13 +310,18 @@ class CrashNetworkDensity(object):
 
   def execute(self, parameters, messages):
   
+    
+    arcpy.ImportToolbox(r"C:\Program Files (x86)\ArcGIS\Desktop10.3\ArcToolbox\Toolboxes\OpenStreetMap Toolbox.tbx")
+	
+  
     originTableName = parameters[0].valueAsText
     originSnapDistance = parameters[2].valueAsText + " " + parameters[1].valueAsText
 	
-    desintationTableName = parameters[3].valueAsText
+    destinationTableName = parameters[3].valueAsText
     destinationSnapDistance = parameters[5].valueAsText + " " + parameters[4].valueAsText
 
     dataset_name = parameters[6].valueAsText
+    dataset_name_nd = parameters[6].valueAsText + "_ND"
   
 
     # This is the current map, which should be an OSM base map.
@@ -332,13 +337,13 @@ class CrashNetworkDensity(object):
 
     # Download the data from OSM.
     # TODO - OSM Data name should be created by the user.
-    arcpy.DownloadExtractSymbolizeOSMData2_osmtools(extent, True, "OSM_SAC_TEST", "OSMLayer")
+    arcpy.DownloadExtractSymbolizeOSMData2_osmtools(extent, True, dataset_name, "OSMLayer")
 
     # Convert the OSM data to a network dataset.
-    arcpy.OSMGPCreateNetworkDataset_osmtools("OSM_SAC_TEST", r"DriveGeneric.xml", r"ND")
+    arcpy.OSMGPCreateNetworkDataset_osmtools(dataset_name, r"DriveGeneric.xml", r"ND")
 
     # Create the OD Cost Matrix layer and get a refrence to the layer.
-    result    = arcpy.na.MakeODCostMatrixLayer("OSM_SAC_TEST_ND", "OD Cost Matrix", "DriveTime")
+    result    = arcpy.na.MakeODCostMatrixLayer(dataset_name_nd, "OD Cost Matrix", "DriveTime")
     odcmLayer = result.getOutput(0)
 
     # The OD Cost Matrix layer will have Origins and Destinations layers.  Get
