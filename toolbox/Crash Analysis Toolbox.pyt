@@ -141,6 +141,10 @@ class CrashRadiusDensity(object):
     return
 
 
+
+
+
+
 class CrashNetworkDensity(object):
 
   def __init__(self):
@@ -149,7 +153,81 @@ class CrashNetworkDensity(object):
     self.canRunInBackground = False
   
   def getParameterInfo(self):
-    return []
+  
+  # First parameter, input origin features 
+    in_table1 = arcpy.Parameter(
+        displayName="Input Origin Feature Dataset",
+        name="in_table1",
+        datatype="DEFeatureClass",
+        parameterType="Required",
+        direction="Input")
+
+  # Second parameter, input origin snap distance units
+    radius_units1 = arcpy.Parameter(
+        displayName="Origin Layer Snap Distance Units",
+        name="radius_units1",
+        datatype="String",
+        parameterType="Required",
+        direction="Input")
+
+    radius_units1.filter.type = "ValueList"
+    radius_units1.filter.list = ["METERS", "FEET", "KILOMETERS", "MILES"]
+    radius_units1.value = "METERS"
+  
+    # Third parameter, input origin snap distance magnitude
+    radius_magnitude1 = arcpy.Parameter(
+        displayName="Origin Layer Snap Distance Magnitude",
+        name="radius_magnitude1",
+        datatype="GPLong",
+        parameterType="Required",
+        direction="Input")
+    radius_magnitude1.filter.type = "Range"
+    radius_magnitude1.filter.list = [1,2000]
+    radius_magnitude1.value = 1000
+
+   # Fourth parameter, input destination features
+    in_table2 = arcpy.Parameter(
+        displayName="Input Destination Feature Dataset",
+        name="in_table2",
+        datatype="DEFeatureClass",
+        parameterType="Required",
+        direction="Input")
+
+  # Fifth parameter, input destination snap distance units
+    radius_units2 = arcpy.Parameter(
+        displayName="Destination Layer Snap Distance Units",
+        name="radius_units2",
+        datatype="String",
+        parameterType="Required",
+        direction="Input")
+
+    radius_units2.filter.type = "ValueList"
+    radius_units2.filter.list = ["METERS", "FEET", "KILOMETERS", "MILES"]
+    radius_units2.value = "METERS"
+  
+    # Sixth parameter, input destination snap distance magnitude
+    radius_magnitude2 = arcpy.Parameter(
+        displayName="Destination Layer Snap Distance Magnitude",
+        name="radius_magnitude2",
+        datatype="GPLong",
+        parameterType="Required",
+        direction="Input")
+    radius_magnitude2.filter.type = "Range"
+    radius_magnitude2.filter.list = [1,2000]
+    radius_magnitude2.value = 1000
+
+    # Seventh parameter, OSM dataset name
+    dataset_name = arcpy.Parameter(
+        displayName="Enter Name of OSM Dataset to be Created",
+        name = "dataset_name",
+        datatype="String",
+        parameterType="Required",
+        direction="Input")
+   
+   
+    params = [in_table1,radius_units1,radius_magnitude1,in_table2, radius_units2, radius_magnitude2, dataset_name]
+    
+    return params
 
   def isLicensed(self):
     # Network Analyst tools must be available.
@@ -167,14 +245,49 @@ class CrashNetworkDensity(object):
     return os.path.isfile(osmToolPath)
 
   def updateParameters(self, parameters):
-    """Modify the values and properties of parameters before internal
-    validation is performed.  This method is called whenever a parameter
-    has been changed."""
+    if parameters[1].value == "METERS":
+      parameters[2].filter.list = [1,2000]
+      if parameters[2].value > 2000:
+        parameters[2].value = 1000
+    elif parameters[1].value == "FEET":
+      parameters[2].filter.list = [1,6000]
+      if parameters[2].value > 6000:
+        parameters[2].value = 3000
+    elif parameters[1].value == "MILES":
+      parameters[2].filter.list = [1,50]
+      if parameters[2].value > 50:
+        parameters[2].value = 25
+    elif parameters[1].value == "KILOMETERS":
+      parameters[2].filter.list = [1,100]
+      if parameters[2].value > 100:
+        parameters[2].value = 50
+      
+    if parameters[4].value == "METERS":
+      parameters[5].filter.list = [1,2000]
+      if parameters[5].value > 2000:
+        parameters[5].value = 1000
+    elif parameters[4].value == "FEET":
+      parameters[5].filter.list = [1,6000]
+      if parameters[5].value > 6000:
+        parameters[5].value = 3000
+    elif parameters[4].value == "MILES":
+      parameters[5].filter.list = [1,50]
+      if parameters[5].value > 50:
+        parameters[5].value = 25
+    elif parameters[4].value == "KILOMETERS":
+      parameters[5].filter.list = [1,100]
+      if parameters[5].value > 100:
+        parameters[5].value = 50
+
     return
 
-  def updateMessages(self, parameters):
-    """Modify the messages created by internal validation for each tool
-    parameter.  This method is called after internal validation."""
+  def updateMessages(self, parameters):  
+    if parameters[1].hasError():
+      parameters[1].setErrorMessage("The input you have entered is invalid. Please select one of the available units from the drop down menu.")
+
+    if parameters[4].hasError():
+      parameters[4].setErrorMessage("The input you have entered is invalid. Please select one of the available units from the drop down menu.")
+
     return
 
   def execute(self, parameters, messages):
@@ -182,6 +295,15 @@ class CrashNetworkDensity(object):
     instInfo    = arcpy.GetInstallInfo()
     osmToolPath = instInfo["InstallDir"] + r"ArcToolbox\Toolboxes\OpenStreetMap Toolbox.tbx"
     arcpy.ImportToolbox(osmToolPath)
+  
+    originTableName    = parameters[0].valueAsText
+    originSnapDistance = parameters[2].valueAsText + " " + parameters[1].valueAsText
+
+    destinationTableName    = parameters[3].valueAsText
+    destinationSnapDistance = parameters[5].valueAsText + " " + parameters[4].valueAsText
+
+    dataset_name    = parameters[6].valueAsText
+    dataset_name_nd = parameters[6].valueAsText + "_ND"
 
     # This is the current map, which should be an OSM base map.
     curMapDoc = arcpy.mapping.MapDocument("CURRENT")
@@ -196,13 +318,13 @@ class CrashNetworkDensity(object):
 
     # Download the data from OSM.
     # TODO - OSM Data name should be created by the user.
-    arcpy.DownloadExtractSymbolizeOSMData2_osmtools(extent, True, "OSM_SAC_TEST", "OSMLayer")
+    arcpy.DownloadExtractSymbolizeOSMData2_osmtools(extent, True, dataset_name, "OSMLayer")
 
     # Convert the OSM data to a network dataset.
-    arcpy.OSMGPCreateNetworkDataset_osmtools("OSM_SAC_TEST", r"DriveGeneric.xml", r"ND")
+    arcpy.OSMGPCreateNetworkDataset_osmtools(dataset_name, r"DriveGeneric.xml", r"ND")
 
     # Create the OD Cost Matrix layer and get a refrence to the layer.
-    result    = arcpy.na.MakeODCostMatrixLayer("OSM_SAC_TEST_ND", "OD Cost Matrix", "DriveTime")
+    result    = arcpy.na.MakeODCostMatrixLayer(dataset_name_nd, "OD Cost Matrix", "DriveTime")
     odcmLayer = result.getOutput(0)
 
     # The OD Cost Matrix layer will have Origins and Destinations layers.  Get
@@ -214,8 +336,8 @@ class CrashNetworkDensity(object):
     # Add the origins.
     # TODO - "Collisions" should be selected by the user.
     # TODO - 300 Meters should be selected by the user.
-    arcpy.na.AddLocations(odcmLayer, odcmOriginLayer, "Collisions", "", "300 Meters")
-    arcpy.na.AddLocations(odcmLayer, odcmDestLayer,   "Collisions", "", "300 Meters")
+    arcpy.na.AddLocations(odcmLayer, odcmOriginLayer, originTableName, "", originSnapDistance)
+    arcpy.na.AddLocations(odcmLayer, odcmDestLayer,   destinationTableName, "", destinationSnapDistance)
 
     # Solve the matrix.
     arcpy.na.Solve(odcmLayer)
