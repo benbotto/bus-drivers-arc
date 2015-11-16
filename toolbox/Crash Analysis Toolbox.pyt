@@ -187,7 +187,7 @@ class CrashNetworkDensity(object):
 	
     # Third parameter, input origin snap distance magnitude
     radius_magnitude1 = arcpy.Parameter(
-        displayName="Destination Layer Snap Distance Magnitude",
+        displayName="Origin Layer Snap Distance Magnitude",
         name="radius_magnitude1",
         datatype="GPLong",
         parameterType="Required",
@@ -206,7 +206,7 @@ class CrashNetworkDensity(object):
 
 	# Fifth parameter, input destination snap distance units
     radius_units2 = arcpy.Parameter(
-        displayName="Origin Layer Snap Distance Units",
+        displayName="Destination Layer Snap Distance Units",
         name="radius_units2",
         datatype="String",
         parameterType="Required",
