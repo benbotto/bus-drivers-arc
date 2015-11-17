@@ -47,7 +47,7 @@ class CrashRadiusDensity(object):
     radius_magnitude = arcpy.Parameter(
       displayName="Radius Magnitude",
       name="radius_magnitude",
-      datatype="GPLong",
+      datatype="Long",
       parameterType="Required",
       direction="Input")
     radius_magnitude.filter.type = "Range"
@@ -158,7 +158,7 @@ class CrashNetworkDensity(object):
     in_table1 = arcpy.Parameter(
         displayName="Input Origin Feature Dataset",
         name="in_table1",
-        datatype="DEFeatureClass",
+        datatype="Feature Class",
         parameterType="Required",
         direction="Input")
 
@@ -178,7 +178,7 @@ class CrashNetworkDensity(object):
     radius_magnitude1 = arcpy.Parameter(
         displayName="Origin Layer Snap Distance Magnitude",
         name="radius_magnitude1",
-        datatype="GPLong",
+        datatype="Long",
         parameterType="Required",
         direction="Input")
     radius_magnitude1.filter.type = "Range"
@@ -189,7 +189,7 @@ class CrashNetworkDensity(object):
     in_table2 = arcpy.Parameter(
         displayName="Input Destination Feature Dataset",
         name="in_table2",
-        datatype="DEFeatureClass",
+        datatype="Feature Class",
         parameterType="Required",
         direction="Input")
 
@@ -209,7 +209,7 @@ class CrashNetworkDensity(object):
     radius_magnitude2 = arcpy.Parameter(
         displayName="Destination Layer Snap Distance Magnitude",
         name="radius_magnitude2",
-        datatype="GPLong",
+        datatype="Long",
         parameterType="Required",
         direction="Input")
     radius_magnitude2.filter.type = "Range"
@@ -303,7 +303,9 @@ class CrashNetworkDensity(object):
     destinationSnapDistance = parameters[5].valueAsText + " " + parameters[4].valueAsText
 
     dataset_name    = parameters[6].valueAsText
-    dataset_name_nd = parameters[6].valueAsText + "_ND"
+    # Note that this has "\\".  10.1 has a hard time finding the directory of the _ND file otherwise.
+    dataset_name_nd = parameters[6].valueAsText + "\\" + parameters[6].valueAsText +"_ND"
+
 
     # This is the current map, which should be an OSM base map.
     curMapDoc = arcpy.mapping.MapDocument("CURRENT")
@@ -334,8 +336,8 @@ class CrashNetworkDensity(object):
     odcmDestLayer   = odcmSublayers["Destinations"]
 
     # Add the origins.
-    # TODO - "Collisions" should be selected by the user.
-    # TODO - 300 Meters should be selected by the user.
+    # originTableName, ex. "Collisions" should be selected by the user.
+    # Snapdistance, ex. 300 Meters should be selected by the user.
     arcpy.na.AddLocations(odcmLayer, odcmOriginLayer, originTableName, "", originSnapDistance)
     arcpy.na.AddLocations(odcmLayer, odcmDestLayer,   destinationTableName, "", destinationSnapDistance)
 
@@ -344,7 +346,11 @@ class CrashNetworkDensity(object):
 
     # Show ODCM layer to the user.
     arcpy.mapping.AddLayer(dataFrame, odcmLayer, "TOP")
-
+    #Save the layers, as for some reason in 10.1, the ODCM layer disappears from the layers right after finishing.
+    #TODO - find a workaround against this.  Don't want to save needless stuff.
+    odcmLayer.saveACopy("test.lyr")
+    arcpy.RefreshTOC()
+    
     return
 
 
