@@ -11,7 +11,7 @@ class Toolbox(object):
     arcpy.env.overwriteOutput = True #allows tool to be ran again if user decides to. will need to assess for recursive tools
 
     # List of tool classes associated with this toolbox
-    self.tools = [CrashRadiusDensity,CrashNetworkDensity, CrashDensity_DrivetimeCutoff]
+    self.tools = [CrashRadiusDensity, CrashNetworkDensity]
 
 
 class CrashRadiusDensity(object):
@@ -144,18 +144,21 @@ class CrashRadiusDensity(object):
 
 
 
-
-
 class CrashNetworkDensity(object):
-
+  ###
+  # Initialize the tool.
+  ###
   def __init__(self):
     self.label = "CrashNetworkDensity"
     self.description = "Finds the density of crashes using an auto-generated network dataset."
     self.canRunInBackground = False
   
+  ###
+  # Get input from the users.
+  ###
   def getParameterInfo(self):
   
-  # First parameter, input origin features 
+    # First parameter, input origin features.
     in_table1 = arcpy.Parameter(
         displayName="Input Origin Feature Dataset",
         name="in_table1",
@@ -163,7 +166,7 @@ class CrashNetworkDensity(object):
         parameterType="Required",
         direction="Input")
 
-  # Second parameter, input origin snap distance units
+    # Second parameter, input origin snap distance units.
     radius_units1 = arcpy.Parameter(
         displayName="Origin Layer Snap Distance Units",
         name="radius_units1",
@@ -175,7 +178,7 @@ class CrashNetworkDensity(object):
     radius_units1.filter.list = ["METERS", "FEET", "KILOMETERS", "MILES"]
     radius_units1.value = "METERS"
   
-    # Third parameter, input origin snap distance magnitude
+    # Third parameter, input origin snap distance magnitude.
     radius_magnitude1 = arcpy.Parameter(
         displayName="Origin Layer Snap Distance Magnitude",
         name="radius_magnitude1",
@@ -186,7 +189,7 @@ class CrashNetworkDensity(object):
     radius_magnitude1.filter.list = [1,2000]
     radius_magnitude1.value = 1000
 
-   # Fourth parameter, input destination features
+    # Fourth parameter, input destination features.
     in_table2 = arcpy.Parameter(
         displayName="Input Destination Feature Dataset",
         name="in_table2",
@@ -194,7 +197,7 @@ class CrashNetworkDensity(object):
         parameterType="Required",
         direction="Input")
 
-  # Fifth parameter, input destination snap distance units
+    # Fifth parameter, input destination snap distance units.
     radius_units2 = arcpy.Parameter(
         displayName="Destination Layer Snap Distance Units",
         name="radius_units2",
@@ -206,7 +209,7 @@ class CrashNetworkDensity(object):
     radius_units2.filter.list = ["METERS", "FEET", "KILOMETERS", "MILES"]
     radius_units2.value = "METERS"
   
-    # Sixth parameter, input destination snap distance magnitude
+    # Sixth parameter, input destination snap distance magnitude.
     radius_magnitude2 = arcpy.Parameter(
         displayName="Destination Layer Snap Distance Magnitude",
         name="radius_magnitude2",
@@ -217,265 +220,33 @@ class CrashNetworkDensity(object):
     radius_magnitude2.filter.list = [1,2000]
     radius_magnitude2.value = 1000
 
-    # Seventh parameter, OSM dataset name
+    # Seventh parameter, OSM dataset name.
     dataset_name = arcpy.Parameter(
         displayName="Enter Name of OSM Dataset to be Created",
         name = "dataset_name",
         datatype="String",
         parameterType="Required",
         direction="Input")
-   
-   
-   
-    params = [in_table1,radius_units1,radius_magnitude1,in_table2, radius_units2, radius_magnitude2, dataset_name]
-    
-    return params
 
-  def isLicensed(self):
-    # Network Analyst tools must be available.
-    if arcpy.CheckExtension("Network") != "Available":
-      return False
-
-    # The OpenStreetMap toolbox must be installed.
-    #TODO - Kevin's having issues here.
-    toolboxes = arcpy.ListToolboxes("OpenStreetMap Toolbox")
-    if len(toolboxes) == 0:
-      return False
-
-    # Make sure the OSM toolbox can be found.
-    instInfo    = arcpy.GetInstallInfo()
-    osmToolPath = instInfo["InstallDir"] + r"ArcToolbox\Toolboxes\OpenStreetMap Toolbox.tbx"
-    return os.path.isfile(osmToolPath)
-
-  def updateParameters(self, parameters):
-    if parameters[1].value == "METERS":
-      parameters[2].filter.list = [1,2000]
-      if parameters[2].value > 2000:
-        parameters[2].value = 1000
-    elif parameters[1].value == "FEET":
-      parameters[2].filter.list = [1,6000]
-      if parameters[2].value > 6000:
-        parameters[2].value = 3000
-    elif parameters[1].value == "MILES":
-      parameters[2].filter.list = [1,50]
-      if parameters[2].value > 50:
-        parameters[2].value = 25
-    elif parameters[1].value == "KILOMETERS":
-      parameters[2].filter.list = [1,100]
-      if parameters[2].value > 100:
-        parameters[2].value = 50
-      
-    if parameters[4].value == "METERS":
-      parameters[5].filter.list = [1,2000]
-      if parameters[5].value > 2000:
-        parameters[5].value = 1000
-    elif parameters[4].value == "FEET":
-      parameters[5].filter.list = [1,6000]
-      if parameters[5].value > 6000:
-        parameters[5].value = 3000
-    elif parameters[4].value == "MILES":
-      parameters[5].filter.list = [1,50]
-      if parameters[5].value > 50:
-        parameters[5].value = 25
-    elif parameters[4].value == "KILOMETERS":
-      parameters[5].filter.list = [1,100]
-      if parameters[5].value > 100:
-        parameters[5].value = 50
-
-    return
-
-  def updateMessages(self, parameters):  
-    if parameters[1].hasError():
-      parameters[1].setErrorMessage("The input you have entered is invalid. Please select one of the available units from the drop down menu.")
-
-    if parameters[4].hasError():
-      parameters[4].setErrorMessage("The input you have entered is invalid. Please select one of the available units from the drop down menu.")
-
-    return
-
-  def execute(self, parameters, messages):
-    # Load the OpenStreetMap toolbox.
-    instInfo    = arcpy.GetInstallInfo()
-    osmToolPath = instInfo["InstallDir"] + r"ArcToolbox\Toolboxes\OpenStreetMap Toolbox.tbx"
-    arcpy.ImportToolbox(osmToolPath)
-  
-    originTableName    = parameters[0].valueAsText
-    originSnapDistance = parameters[2].valueAsText + " " + parameters[1].valueAsText
-
-    destinationTableName    = parameters[3].valueAsText
-    destinationSnapDistance = parameters[5].valueAsText + " " + parameters[4].valueAsText
-
-    dataset_name    = parameters[6].valueAsText
-    # Note that this has "\\".  10.1 has a hard time finding the directory of the _ND file otherwise.
-    dataset_name_nd = parameters[6].valueAsText + "\\" + parameters[6].valueAsText +"_ND"
-
-
-    # This is the current map, which should be an OSM base map.
-    curMapDoc = arcpy.mapping.MapDocument("CURRENT")
-
-    # Get the data from from the map (see the DataFrame object of arcpy).
-    # The DataFrame object has an "extent" object that has the XMin, XMax, YMin, and YMax.
-    dataFrame = arcpy.mapping.ListDataFrames(curMapDoc, "Layers")[0]
-    extent    = dataFrame.extent
-
-    messages.addMessage("Using window extents.")
-    messages.addMessage("XMin: {0}, XMax: {1}, YMin: {2}, YMax: {3}".format(extent.XMin, extent.XMax, extent.YMin, extent.YMax))
-
-    
-    
-    """
-    def get_geodatabase_path(input_table):
-      '''Return the Geodatabase path from the input table or feature class.
-      :param input_table: path to the input table or feature class 
-      '''
-      workspace = os.path.dirname(input_table)
-      if [any(ext) for ext in ('.gdb', '.mdb', '.sde') if ext in os.path.splitext(workspace)]:
-        return workspace
-      else:
-        return os.path.dirname(workspace)
-    """
-    # Download the data from OSM.
-    if (not arcpy.Exists("C:\Users\Austin\Documents\ArcGIS\Default.gdb\\" + dataset_name)):#If the Network Dataset Already Exists, skip the DownloadExtractSymbolize step.
-      arcpy.DownloadExtractSymbolizeOSMData2_osmtools(extent, True, dataset_name, "OSMLayer")
-    else:
-      messages.addMessage("OSM already exists.  Skipping DownloadExtractSymbolize.")
-    # Convert the OSM data to a network dataset.
-    arcpy.OSMGPCreateNetworkDataset_osmtools(dataset_name, r"DriveGeneric.xml", r"ND")
-
-    # Create the OD Cost Matrix layer and get a refrence to the layer.
-    result    = arcpy.na.MakeODCostMatrixLayer(dataset_name_nd, "OD Cost Matrix", "DriveTime", drivetime_cutoff_mins, "", "Meters")
-    odcmLayer = result.getOutput(0)
-
-    # The OD Cost Matrix layer will have Origins and Destinations layers.  Get
-    # a reference to each of these.
-    odcmSublayers   = arcpy.na.GetNAClassNames(odcmLayer)
-    odcmOriginLayer = odcmSublayers["Origins"]
-    odcmDestLayer   = odcmSublayers["Destinations"]
-
-    # Add the origins.
-    # originTableName, ex. "Collisions" should be selected by the user.
-    # Snapdistance, ex. 300 Meters should be selected by the user.
-    arcpy.na.AddLocations(odcmLayer, odcmOriginLayer, originTableName, "", originSnapDistance)
-    arcpy.na.AddLocations(odcmLayer, odcmDestLayer,   destinationTableName, "", destinationSnapDistance)
-
-    # Solve the matrix.
-    arcpy.na.Solve(odcmLayer)
-
-    # Show ODCM layer to the user.
-    arcpy.mapping.AddLayer(dataFrame, odcmLayer, "TOP")
-    #Save the layers, as for some reason in 10.1, the ODCM layer disappears from the layers right after finishing.
-    #TODO - find a workaround against this.  Don't want to save needless stuff.
-    odcmLayer.saveACopy("test_drivetime_cutoff.lyr")
-    arcpy.RefreshTOC()
-    
-    return
-
-
-
-    
-    
-    
-    
-class CrashDensity_DrivetimeCutoff(object):
-
-  def __init__(self):
-    self.label = "CrashDensity_DrivetimeCutoff"
-    self.description = "Crash Density Matrix with User Defined Drivetime in Minutes"
-    self.canRunInBackground = False
-  
-  def getParameterInfo(self):
-  
-  # First parameter, input origin features 
-    in_table1 = arcpy.Parameter(
-        displayName="Input Origin Feature Dataset",
-        name="in_table1",
-        datatype="Feature Class",
-        parameterType="Required",
-        direction="Input")
-
-  # Second parameter, input origin snap distance units
-    radius_units1 = arcpy.Parameter(
-        displayName="Origin Layer Snap Distance Units",
-        name="radius_units1",
-        datatype="String",
-        parameterType="Required",
-        direction="Input")
-
-    radius_units1.filter.type = "ValueList"
-    radius_units1.filter.list = ["METERS", "FEET", "KILOMETERS", "MILES"]
-    radius_units1.value = "METERS"
-  
-    # Third parameter, input origin snap distance magnitude
-    radius_magnitude1 = arcpy.Parameter(
-        displayName="Origin Layer Snap Distance Magnitude",
-        name="radius_magnitude1",
-        datatype="Long",
-        parameterType="Required",
-        direction="Input")
-    radius_magnitude1.filter.type = "Range"
-    radius_magnitude1.filter.list = [1,2000]
-    radius_magnitude1.value = 1000
-
-   # Fourth parameter, input destination features
-    in_table2 = arcpy.Parameter(
-        displayName="Input Destination Feature Dataset",
-        name="in_table2",
-        datatype="Feature Class",
-        parameterType="Required",
-        direction="Input")
-
-  # Fifth parameter, input destination snap distance units
-    radius_units2 = arcpy.Parameter(
-        displayName="Destination Layer Snap Distance Units",
-        name="radius_units2",
-        datatype="String",
-        parameterType="Required",
-        direction="Input")
-
-    radius_units2.filter.type = "ValueList"
-    radius_units2.filter.list = ["METERS", "FEET", "KILOMETERS", "MILES"]
-    radius_units2.value = "METERS"
-  
-    # Sixth parameter, input destination snap distance magnitude
-    radius_magnitude2 = arcpy.Parameter(
-        displayName="Destination Layer Snap Distance Magnitude",
-        name="radius_magnitude2",
-        datatype="Long",
-        parameterType="Required",
-        direction="Input")
-    radius_magnitude2.filter.type = "Range"
-    radius_magnitude2.filter.list = [1,2000]
-    radius_magnitude2.value = 1000
-
-    # Seventh parameter, OSM dataset name
-    dataset_name = arcpy.Parameter(
-        displayName="Enter Name of OSM Dataset to be Created",
-        name = "dataset_name",
-        datatype="String",
-        parameterType="Required",
-        direction="Input")
-   
-    # Eighth parameter, drivetime cutoff
-    drivetime_cutoff_mins = arcpy.Parameter(
-        displayName="Enter Drivetime Cutoff in Minutes",
-        name = "drivetime_cutoff_mins",
+    # Eighth parameter, drivetime cutoff.
+    # TODO: Needs units.
+    drivetime_cutoff_meters = arcpy.Parameter(
+        displayName="Enter Drivetime Cutoff in Meters",
+        name = "drivetime_cutoff_meters",
         datatype="Double",
         parameterType="Required",
         direction="Input")
    
-    params = [in_table1,radius_units1,radius_magnitude1,in_table2, radius_units2, radius_magnitude2, dataset_name, drivetime_cutoff_mins]
+    params = [in_table1, radius_units1, radius_magnitude1,in_table2, radius_units2, radius_magnitude2, dataset_name, drivetime_cutoff_meters]
     
     return params
 
+  ###
+  # Check if the tool is available for use.
+  ###
   def isLicensed(self):
     # Network Analyst tools must be available.
     if arcpy.CheckExtension("Network") != "Available":
-      return False
-
-    # The OpenStreetMap toolbox must be installed.
-    #TODO - Kevin's having issues here.
-    toolboxes = arcpy.ListToolboxes("OpenStreetMap Toolbox")
-    if len(toolboxes) == 0:
       return False
 
     # Make sure the OSM toolbox can be found.
@@ -483,6 +254,9 @@ class CrashDensity_DrivetimeCutoff(object):
     osmToolPath = instInfo["InstallDir"] + r"ArcToolbox\Toolboxes\OpenStreetMap Toolbox.tbx"
     return os.path.isfile(osmToolPath)
 
+  ###
+  # Validate each input.
+  ###
   def updateParameters(self, parameters):
     if parameters[1].value == "METERS":
       parameters[2].filter.list = [1,2000]
@@ -520,6 +294,9 @@ class CrashDensity_DrivetimeCutoff(object):
 
     return
 
+  ###
+  # If any fields are invalid, show an appropriate error message.
+  ###
   def updateMessages(self, parameters):  
     if parameters[1].hasError():
       parameters[1].setErrorMessage("The input you have entered is invalid. Please select one of the available units from the drop down menu.")
@@ -529,6 +306,9 @@ class CrashDensity_DrivetimeCutoff(object):
 
     return
 
+  ###
+  # Execute the tool.
+  ###
   def execute(self, parameters, messages):
     # Load the OpenStreetMap toolbox.
     instInfo    = arcpy.GetInstallInfo()
@@ -545,9 +325,9 @@ class CrashDensity_DrivetimeCutoff(object):
     # Note that this has "\\".  10.1 has a hard time finding the directory of the _ND file otherwise.
     dataset_name_nd = parameters[6].valueAsText + "\\" + parameters[6].valueAsText +"_ND"
 
-    # Drivetime cutoff minutes
-    drivetime_cutoff_mins = parameters[7] #should be a double
-    
+    # Drivetime cutoff minutes.
+    drivetime_cutoff_meters = parameters[7].valueAsText
+
     # This is the current map, which should be an OSM base map.
     curMapDoc = arcpy.mapping.MapDocument("CURRENT")
 
@@ -559,29 +339,15 @@ class CrashDensity_DrivetimeCutoff(object):
     messages.addMessage("Using window extents.")
     messages.addMessage("XMin: {0}, XMax: {1}, YMin: {2}, YMax: {3}".format(extent.XMin, extent.XMax, extent.YMin, extent.YMax))
 
-    
-    
-    """
-    def get_geodatabase_path(input_table):
-      '''Return the Geodatabase path from the input table or feature class.
-      :param input_table: path to the input table or feature class 
-      '''
-      workspace = os.path.dirname(input_table)
-      if [any(ext) for ext in ('.gdb', '.mdb', '.sde') if ext in os.path.splitext(workspace)]:
-        return workspace
-      else:
-        return os.path.dirname(workspace)
-    """
     # Download the data from OSM.
-    if (not arcpy.Exists("C:\Users\Austin\Documents\ArcGIS\Default.gdb\\" + dataset_name)):#If the Network Dataset Already Exists, skip the DownloadExtractSymbolize step.
-      arcpy.DownloadExtractSymbolizeOSMData2_osmtools(extent, True, dataset_name, "OSMLayer")
-    else:
-      messages.addMessage("OSM already exists.  Skipping DownloadExtractSymbolize.")
+    # TODO: Use should be able to select a dataset.
+    arcpy.DownloadExtractSymbolizeOSMData2_osmtools(extent, True, dataset_name, "OSMLayer")
+    
     # Convert the OSM data to a network dataset.
-    arcpy.OSMGPCreateNetworkDataset_osmtools(dataset_name, r"DriveGeneric.xml", r"ND")
+    arcpy.OSMGPCreateNetworkDataset_osmtools(dataset_name, "DriveGeneric.xml", "ND")
 
     # Create the OD Cost Matrix layer and get a refrence to the layer.
-    result    = arcpy.na.MakeODCostMatrixLayer(dataset_name_nd, "OD Cost Matrix", "DriveTime")
+    result    = arcpy.na.MakeODCostMatrixLayer(dataset_name_nd, "OD Cost Matrix", "Length", drivetime_cutoff_meters)
     odcmLayer = result.getOutput(0)
 
     # The OD Cost Matrix layer will have Origins and Destinations layers.  Get
@@ -603,10 +369,7 @@ class CrashDensity_DrivetimeCutoff(object):
     arcpy.mapping.AddLayer(dataFrame, odcmLayer, "TOP")
     #Save the layers, as for some reason in 10.1, the ODCM layer disappears from the layers right after finishing.
     #TODO - find a workaround against this.  Don't want to save needless stuff.
-    odcmLayer.saveACopy("test.lyr")
+    odcmLayer.saveACopy(dataset_name + ".lyr")
     arcpy.RefreshTOC()
     
     return
-
-
-
