@@ -159,85 +159,93 @@ class CrashNetworkDensity(object):
   def getParameterInfo(self):
   
     # First parameter, input origin features.
-    in_table1 = arcpy.Parameter(
+    origin_points = arcpy.Parameter(
         displayName="Input Origin Feature Dataset",
-        name="in_table1",
+        name="origin_points",
         datatype="Feature Class",
         parameterType="Required",
         direction="Input")
 
     # Second parameter, input origin snap distance units.
-    radius_units1 = arcpy.Parameter(
+    origin_snap_units = arcpy.Parameter(
         displayName="Origin Layer Snap Distance Units",
-        name="radius_units1",
+        name="origin_snap_units",
         datatype="String",
         parameterType="Required",
         direction="Input")
 
-    radius_units1.filter.type = "ValueList"
-    radius_units1.filter.list = ["METERS", "FEET", "KILOMETERS", "MILES"]
-    radius_units1.value = "METERS"
+    origin_snap_units.filter.type = "ValueList"
+    origin_snap_units.filter.list = ["METERS", "FEET", "KILOMETERS", "MILES"]
+    origin_snap_units.value = "METERS"
   
     # Third parameter, input origin snap distance magnitude.
-    radius_magnitude1 = arcpy.Parameter(
+    origin_snap = arcpy.Parameter(
         displayName="Origin Layer Snap Distance Magnitude",
-        name="radius_magnitude1",
+        name="origin_snap",
         datatype="Long",
         parameterType="Required",
         direction="Input")
-    radius_magnitude1.filter.type = "Range"
-    radius_magnitude1.filter.list = [1,2000]
-    radius_magnitude1.value = 1000
+    origin_snap.filter.type = "Range"
+    origin_snap.filter.list = [1,500]
+    origin_snap.value = 10
 
     # Fourth parameter, input destination features.
-    in_table2 = arcpy.Parameter(
+    dest_points = arcpy.Parameter(
         displayName="Input Destination Feature Dataset",
-        name="in_table2",
+        name="dest_points",
         datatype="Feature Class",
         parameterType="Required",
         direction="Input")
 
     # Fifth parameter, input destination snap distance units.
-    radius_units2 = arcpy.Parameter(
+    dest_snap_units = arcpy.Parameter(
         displayName="Destination Layer Snap Distance Units",
-        name="radius_units2",
+        name="dest_snap_units",
         datatype="String",
         parameterType="Required",
         direction="Input")
 
-    radius_units2.filter.type = "ValueList"
-    radius_units2.filter.list = ["METERS", "FEET", "KILOMETERS", "MILES"]
-    radius_units2.value = "METERS"
+    dest_snap_units.filter.type = "ValueList"
+    dest_snap_units.filter.list = ["METERS", "FEET", "KILOMETERS", "MILES"]
+    dest_snap_units.value = "METERS"
   
     # Sixth parameter, input destination snap distance magnitude.
-    radius_magnitude2 = arcpy.Parameter(
+    dest_snap = arcpy.Parameter(
         displayName="Destination Layer Snap Distance Magnitude",
-        name="radius_magnitude2",
+        name="dest_snap",
         datatype="Long",
         parameterType="Required",
         direction="Input")
-    radius_magnitude2.filter.type = "Range"
-    radius_magnitude2.filter.list = [1,2000]
-    radius_magnitude2.value = 1000
+    dest_snap.filter.type = "Range"
+    dest_snap.filter.list = [1,500]
+    dest_snap.value = 10
 
-    # Seventh parameter, OSM dataset name.
-    dataset_name = arcpy.Parameter(
-        displayName="Enter Name of OSM Dataset to be Created",
-        name = "dataset_name",
-        datatype="String",
-        parameterType="Required",
-        direction="Input")
-
-    # Eighth parameter, drivetime cutoff.
-    # TODO: Needs units.
+    # Seventh parameter, drivetime cutoff.
     drivetime_cutoff_meters = arcpy.Parameter(
-        displayName="Enter Drivetime Cutoff in Meters",
+        displayName="Enter Drive Distance Cutoff in Meters",
         name = "drivetime_cutoff_meters",
         datatype="Double",
         parameterType="Required",
         direction="Input")
+    drivetime_cutoff_meters.value = 1000
+
+    # Eigth parameter, OSM dataset name.
+    dataset_name = arcpy.Parameter(
+        displayName="Enter Name of OSM Dataset to be Created",
+        name = "dataset_name",
+        datatype="String",
+        parameterType="Optional",
+        direction="Input")
+
+    # Ninth parameter, optional network dataset.
+    network_dataset = arcpy.Parameter(
+        displayName="Existing Network Dataset",
+        name = "network_dataset",
+        datatype="Network Dataset Layer",
+        parameterType="Optional",
+        direction="Input")
    
-    params = [in_table1, radius_units1, radius_magnitude1,in_table2, radius_units2, radius_magnitude2, dataset_name, drivetime_cutoff_meters]
+    params = [origin_points, origin_snap_units, origin_snap, dest_points, dest_snap_units, dest_snap, drivetime_cutoff_meters, dataset_name, network_dataset]
     
     return params
 
@@ -259,50 +267,63 @@ class CrashNetworkDensity(object):
   ###
   def updateParameters(self, parameters):
     if parameters[1].value == "METERS":
-      parameters[2].filter.list = [1,2000]
-      if parameters[2].value > 2000:
-        parameters[2].value = 1000
+      parameters[2].filter.list = [1,500]
+      if parameters[2].value > 500:
+        parameters[2].value = 500
     elif parameters[1].value == "FEET":
-      parameters[2].filter.list = [1,6000]
-      if parameters[2].value > 6000:
-        parameters[2].value = 3000
+      parameters[2].filter.list = [1,1500]
+      if parameters[2].value > 1500:
+        parameters[2].value = 1500
     elif parameters[1].value == "MILES":
-      parameters[2].filter.list = [1,50]
-      if parameters[2].value > 50:
-        parameters[2].value = 25
+      parameters[2].filter.list = [1,2]
+      if parameters[2].value > 2:
+        parameters[2].value = 2
     elif parameters[1].value == "KILOMETERS":
-      parameters[2].filter.list = [1,100]
-      if parameters[2].value > 100:
-        parameters[2].value = 50
+      parameters[2].filter.list = [1,3]
+      if parameters[2].value > 3:
+        parameters[2].value = 3
       
     if parameters[4].value == "METERS":
-      parameters[5].filter.list = [1,2000]
-      if parameters[5].value > 2000:
-        parameters[5].value = 1000
+      parameters[5].filter.list = [1,500]
+      if parameters[5].value > 500:
+        parameters[5].value = 500
     elif parameters[4].value == "FEET":
-      parameters[5].filter.list = [1,6000]
-      if parameters[5].value > 6000:
-        parameters[5].value = 3000
+      parameters[5].filter.list = [1,1500]
+      if parameters[5].value > 1500:
+        parameters[5].value = 1500
     elif parameters[4].value == "MILES":
-      parameters[5].filter.list = [1,50]
-      if parameters[5].value > 50:
-        parameters[5].value = 25
+      parameters[5].filter.list = [1,2]
+      if parameters[5].value > 2:
+        parameters[5].value = 2
     elif parameters[4].value == "KILOMETERS":
-      parameters[5].filter.list = [1,100]
-      if parameters[5].value > 100:
-        parameters[5].value = 50
+      parameters[5].filter.list = [1,3]
+      if parameters[5].value > 3:
+        parameters[5].value = 3
 
     return
 
   ###
   # If any fields are invalid, show an appropriate error message.
   ###
-  def updateMessages(self, parameters):  
+  def updateMessages(self, parameters):
+    # Origins and destinations must be point feature classes.
+    originDesc = arcpy.Describe(parameters[0])
+    if originDesc.shapeType != "Point":
+      parameters[0].setErrorMessage("The origin points are not of type 'Point'")
+    
+    destDesc = arcpy.Describe(parameters[3])
+    if destDesc.shapeType != "Point":
+      parameters[3].setErrorMessage("The destination points are not of type 'Point'")
+
+    # There must be valid units for the snap distances.
     if parameters[1].hasError():
       parameters[1].setErrorMessage("The input you have entered is invalid. Please select one of the available units from the drop down menu.")
 
     if parameters[4].hasError():
       parameters[4].setErrorMessage("The input you have entered is invalid. Please select one of the available units from the drop down menu.")
+
+    if parameters[7].valueAsText == None and parameters[8].valueAsText == None:
+      parameters[7].setErrorMessage("Either a new dataset name or an existing network dataset is required.")
 
     return
 
@@ -321,30 +342,37 @@ class CrashNetworkDensity(object):
     destinationTableName    = parameters[3].valueAsText
     destinationSnapDistance = parameters[5].valueAsText + " " + parameters[4].valueAsText
 
-    dataset_name    = parameters[6].valueAsText
-    # Note that this has "\\".  10.1 has a hard time finding the directory of the _ND file otherwise.
-    dataset_name_nd = parameters[6].valueAsText + "\\" + parameters[6].valueAsText +"_ND"
-
     # Drivetime cutoff minutes.
-    drivetime_cutoff_meters = parameters[7].valueAsText
+    drivetime_cutoff_meters = parameters[6].valueAsText
 
     # This is the current map, which should be an OSM base map.
     curMapDoc = arcpy.mapping.MapDocument("CURRENT")
 
     # Get the data from from the map (see the DataFrame object of arcpy).
-    # The DataFrame object has an "extent" object that has the XMin, XMax, YMin, and YMax.
     dataFrame = arcpy.mapping.ListDataFrames(curMapDoc, "Layers")[0]
-    extent    = dataFrame.extent
 
-    messages.addMessage("Using window extents.")
-    messages.addMessage("XMin: {0}, XMax: {1}, YMin: {2}, YMax: {3}".format(extent.XMin, extent.XMax, extent.YMin, extent.YMax))
+    if parameters[7].valueAsText != None:
+      ##
+      # User chose to make a new network dataset from OSM.
+      ##
 
-    # Download the data from OSM.
-    # TODO: Use should be able to select a dataset.
-    arcpy.DownloadExtractSymbolizeOSMData2_osmtools(extent, True, dataset_name, "OSMLayer")
-    
-    # Convert the OSM data to a network dataset.
-    arcpy.OSMGPCreateNetworkDataset_osmtools(dataset_name, "DriveGeneric.xml", "ND")
+      # Note that this has "\\".  10.1 has a hard time finding the directory of the _ND file otherwise.
+      dataset_name    = parameters[7].valueAsText
+      dataset_name_nd = parameters[7].valueAsText + "\\" + parameters[7].valueAsText +"_ND"
+
+      # The DataFrame object has an "extent" object that has the XMin, XMax, YMin, and YMax.
+      extent = dataFrame.extent
+      messages.addMessage("Using window extents.  XMin: {0}, XMax: {1}, YMin: {2}, YMax: {3}".format(extent.XMin, extent.XMax, extent.YMin, extent.YMax))
+
+      # Download the data from OSM.
+      arcpy.DownloadExtractSymbolizeOSMData2_osmtools(extent, True, dataset_name, "OSMLayer")
+
+      # Convert the OSM data to a network dataset.
+      arcpy.OSMGPCreateNetworkDataset_osmtools(dataset_name, "DriveGeneric.xml", "ND")
+    else:
+      # Use selected dataset.
+      dataset_name_nd = parameters[8].valueAsText
+      messages.addMessage("Using existing network dataset: {0}".format(dataset_name_nd))
 
     # Create the OD Cost Matrix layer and get a refrence to the layer.
     result    = arcpy.na.MakeODCostMatrixLayer(dataset_name_nd, "OD Cost Matrix", "Length", drivetime_cutoff_meters)
@@ -356,9 +384,7 @@ class CrashNetworkDensity(object):
     odcmOriginLayer = odcmSublayers["Origins"]
     odcmDestLayer   = odcmSublayers["Destinations"]
 
-    # Add the origins.
-    # originTableName, ex. "Collisions" should be selected by the user.
-    # Snapdistance, ex. 300 Meters should be selected by the user.
+    # Add the origins and destinations to the ODCM.
     arcpy.na.AddLocations(odcmLayer, odcmOriginLayer, originTableName, "", originSnapDistance)
     arcpy.na.AddLocations(odcmLayer, odcmDestLayer,   destinationTableName, "", destinationSnapDistance)
 
@@ -367,9 +393,10 @@ class CrashNetworkDensity(object):
 
     # Show ODCM layer to the user.
     arcpy.mapping.AddLayer(dataFrame, odcmLayer, "TOP")
-    #Save the layers, as for some reason in 10.1, the ODCM layer disappears from the layers right after finishing.
-    #TODO - find a workaround against this.  Don't want to save needless stuff.
-    odcmLayer.saveACopy(dataset_name + ".lyr")
+    
+    # Save a cost matrix layer.  In 10.1 there is a bug that prevents layers from
+    # being added progranmatically.
+    odcmLayer.saveACopy("ODCM_Network_Crash_Density.lyr")
     arcpy.RefreshTOC()
     
     return
