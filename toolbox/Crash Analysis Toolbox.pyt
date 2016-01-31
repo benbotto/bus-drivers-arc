@@ -415,39 +415,62 @@ class NetworkKFunction(object):
   # Get input from the users.
   ###
   def getParameterInfo(self):
-    # First parameter, input origin features.
+    # First parameter: input origin features.
     originPoints = arcpy.Parameter(
       displayName="Input Origin Feature Dataset",
       name="origin_points",
       datatype="Feature Class",
       parameterType="Required",
       direction="Input")
+    originPoints.filter.list = ["Point"]
 
-    # Second parameter, input destination features.
+    # Second parameter: input destination features.
     destPoints = arcpy.Parameter(
       displayName="Input Destination Feature Dataset",
       name="dest_points",
       datatype="Feature Class",
       parameterType="Required",
       direction="Input")
+    destPoints.filter.list = ["Point"]
 
-    # Third parameter, number of distance increments.
-    distInc = arcpy.Parameter(
-      displayName="Input Number of Distance Increments",
-      name="dist_increment",
-      datatype="Double",
-      parameterType="Required",
-      direction="Input")
-
-    # Fourth parameter, optional network dataset.
+    # Third parameter: network dataset.
     networkDataset = arcpy.Parameter(
       displayName="Existing Network Dataset",
       name = "network_dataset",
       datatype="Network Dataset Layer",
       parameterType="Required",
       direction="Input")
+
+    # Fourth parameter: number of distance increments.
+    numInc = arcpy.Parameter(
+      displayName="Input Number of Distance Increments",
+      name="dist_increment",
+      datatype="Long",
+      parameterType="Required",
+      direction="Input")
+    numInc.filter.type  = "Range"
+    numInc.filter.list  = [1, 100]
+    numInc.value        = 10
+
+    # Fifth parameter: beginning distance.
+    begDist = arcpy.Parameter(
+      displayName="Input Beginning Distance",
+      name="beginning_distance",
+      datatype="Double",
+      parameterType="Required",
+      direction="Input")
+    begDist.value = 0
+
+    # Sixth parameter: distance increment.
+    distInc = arcpy.Parameter(
+      displayName="Input Distance Increment",
+      name="distance_increment",
+      datatype="Double",
+      parameterType="Required",
+      direction="Input")
+    distInc.value = 1000
    
-    params = [originPoints, destPoints, distInc, networkDataset]
+    params = [originPoints, destPoints, networkDataset, numInc, begDist, distInc]
     return params
 
   ###
@@ -473,14 +496,6 @@ class NetworkKFunction(object):
   # If any fields are invalid, show an appropriate error message.
   ###
   def updateMessages(self, parameters):
-    # Origins and destinations must be point feature classes.
-    originDesc = arcpy.Describe(parameters[0].valueAsText)
-    if originDesc.shapeType != "Point":
-      parameters[0].setErrorMessage("The origin points are not of type 'Point'")
-    
-    destDesc = arcpy.Describe(parameters[1].valueAsText)
-    if destDesc.shapeType != "Point":
-      parameters[1].setErrorMessage("The destination points are not of type 'Point'")
     return
 
   ###
@@ -489,11 +504,25 @@ class NetworkKFunction(object):
   def execute(self, parameters, messages):
     originPoints   = parameters[0].valueAsText
     destPoints     = parameters[1].valueAsText
-    distInc        = parameters[2].valueAsText
-    networkDataset = parameters[3].valueAsText
+    networkDataset = parameters[2].valueAsText
+    numInc         = parameters[3].value
+    begDist        = parameters[4].value
+    distInc        = parameters[5].value
 
     messages.addMessage("Origin points: {0}".format(originPoints))
     messages.addMessage("Destination points: {0}".format(destPoints))
-    messages.addMessage("Number of distance increments: {0}".format(distInc))
     messages.addMessage("Network dataset: {0}".format(networkDataset))
+    messages.addMessage("Number of distance increments: {0}".format(numInc))
+    messages.addMessage("Beginning distance: {0}".format(begDist))
+    messages.addMessage("Distance increment: {0}".format(distInc))
+
+    #if distInc is None:
+    #  messages.addMessage("Distance increment is none... need to calculate it.")
+
+    for i in range(0, numInc):
+      # This is the OD Cost Matrix cutoff.
+      cutoff = begDist + i * distInc
+      messages.addMessage("Iteration: {0} Cutoff: {1}".format(i, cutoff))
+
+      
     return
