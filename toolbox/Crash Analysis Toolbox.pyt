@@ -8,16 +8,18 @@ class Toolbox(object):
     .pyt file)."""
     self.label = "Crash Analysis Toolbox"
     self.alias = "crashAnalysis"
-    arcpy.env.overwriteOutput = True #allows tool to be ran again if user decides to. will need to assess for recursive tools
+    
+    # Allows tool to be run multiple times, and overwrites any generated feature classes.
+    env.overwriteOutput = True
 
     # List of tool classes associated with this toolbox
-    self.tools = [CrashRadiusDensity, CrashNetworkDensity]
+    self.tools = [CrashRadiusDensity, CrashNetworkDensity, NetworkKFunction]
 
 
 class CrashRadiusDensity(object):
 
   def __init__(self):
-    self.label = "CrashRadiusDensity"
+    self.label = "Crash Radius Density"
     self.description = "This tool creates a feature that contains the density of crashes around each crash."
     self.canRunInBackground = False
   
@@ -149,15 +151,14 @@ class CrashNetworkDensity(object):
   # Initialize the tool.
   ###
   def __init__(self):
-    self.label = "CrashNetworkDensity"
-    self.description = "Finds the density of crashes using an auto-generated network dataset."
+    self.label = "Crash Network Density"
+    self.description = "Finds the distance between origins and destinations using a network dataset.  The network dataset can optionally be gerated automatically."
     self.canRunInBackground = False
   
   ###
   # Get input from the users.
   ###
   def getParameterInfo(self):
-  
     # First parameter, input origin features.
     origin_points = arcpy.Parameter(
         displayName="Input Origin Feature Dataset",
@@ -244,9 +245,9 @@ class CrashNetworkDensity(object):
         datatype="Network Dataset Layer",
         parameterType="Optional",
         direction="Input")
-   
+
     params = [origin_points, origin_snap_units, origin_snap, dest_points, dest_snap_units, dest_snap, drivetime_cutoff_meters, dataset_name, network_dataset]
-    
+
     return params
 
   ###
@@ -307,11 +308,11 @@ class CrashNetworkDensity(object):
   ###
   def updateMessages(self, parameters):
     # Origins and destinations must be point feature classes.
-    originDesc = arcpy.Describe(parameters[0])
+    originDesc = arcpy.Describe(parameters[0].valueAsText)
     if originDesc.shapeType != "Point":
       parameters[0].setErrorMessage("The origin points are not of type 'Point'")
     
-    destDesc = arcpy.Describe(parameters[3])
+    destDesc = arcpy.Describe(parameters[3].valueAsText)
     if destDesc.shapeType != "Point":
       parameters[3].setErrorMessage("The destination points are not of type 'Point'")
 
@@ -399,4 +400,100 @@ class CrashNetworkDensity(object):
     odcmLayer.saveACopy("ODCM_Network_Crash_Density.lyr")
     arcpy.RefreshTOC()
     
+    return
+
+class NetworkKFunction(object):
+  ###
+  # Initialize the tool.
+  ###
+  def __init__(self):
+    self.label = "Network K Function"
+    self.description = "Usese a Network K Function to analyze clustering and dispersion trends in a set of crash points."
+    self.canRunInBackground = False
+  
+  ###
+  # Get input from the users.
+  ###
+  def getParameterInfo(self):
+    # First parameter, input origin features.
+    originPoints = arcpy.Parameter(
+      displayName="Input Origin Feature Dataset",
+      name="origin_points",
+      datatype="Feature Class",
+      parameterType="Required",
+      direction="Input")
+
+    # Second parameter, input destination features.
+    destPoints = arcpy.Parameter(
+      displayName="Input Destination Feature Dataset",
+      name="dest_points",
+      datatype="Feature Class",
+      parameterType="Required",
+      direction="Input")
+
+    # Third parameter, number of distance increments.
+    distInc = arcpy.Parameter(
+      displayName="Input Number of Distance Increments",
+      name="dist_increment",
+      datatype="Double",
+      parameterType="Required",
+      direction="Input")
+
+    # Fourth parameter, optional network dataset.
+    networkDataset = arcpy.Parameter(
+      displayName="Existing Network Dataset",
+      name = "network_dataset",
+      datatype="Network Dataset Layer",
+      parameterType="Required",
+      direction="Input")
+   
+    params = [originPoints, destPoints, distInc, networkDataset]
+    return params
+
+  ###
+  # Check if the tool is available for use.
+  ###
+  def isLicensed(self):
+    # Network Analyst tools must be available.
+    if arcpy.CheckExtension("Network") != "Available":
+      return False
+
+    # Make sure the OSM toolbox can be found.
+    instInfo    = arcpy.GetInstallInfo()
+    osmToolPath = instInfo["InstallDir"] + r"ArcToolbox\Toolboxes\OpenStreetMap Toolbox.tbx"
+    return os.path.isfile(osmToolPath)
+
+  ###
+  # Validate each input.
+  ###
+  def updateParameters(self, parameters):
+    return
+
+  ###
+  # If any fields are invalid, show an appropriate error message.
+  ###
+  def updateMessages(self, parameters):
+    # Origins and destinations must be point feature classes.
+    originDesc = arcpy.Describe(parameters[0].valueAsText)
+    if originDesc.shapeType != "Point":
+      parameters[0].setErrorMessage("The origin points are not of type 'Point'")
+    
+    destDesc = arcpy.Describe(parameters[1].valueAsText)
+    if destDesc.shapeType != "Point":
+      parameters[1].setErrorMessage("The destination points are not of type 'Point'")
+    return
+
+  ###
+  # Execute the tool.
+  ###
+  def execute(self, parameters, messages):
+    originPoints   = parameters[0].valueAsText
+    destPoints     = parameters[1].valueAsText
+    distInc        = parameters[2].valueAsText
+    networkDataset = parameters[3].valueAsText
+
+    messages.addMessage("Origin points: {0}".format(originPoints))
+    messages.addMessage("Destination points: {0}".format(destPoints))
+    messages.addMessage("Number of distance increments: {0}".format(distInc))
+    messages.addMessage("Network dataset: {0}".format(networkDataset))
     return
