@@ -343,7 +343,7 @@ class CrashNetworkDensity(object):
     destinationTableName    = parameters[3].valueAsText
     destinationSnapDistance = parameters[5].valueAsText + " " + parameters[4].valueAsText
 
-    # Drivetime cutoff minutes.
+    # Drivetime cutoff meters.
     drivetime_cutoff_meters = parameters[6].valueAsText
 
     # This is the current map, which should be an OSM base map.
@@ -469,8 +469,17 @@ class NetworkKFunction(object):
       parameterType="Required",
       direction="Input")
     distInc.value = 1000
+
+    # Seventh parameter: snap distance.
+    snapDist = arcpy.Parameter(
+      displayName="Input Snap Distance",
+      name="snap_distance",
+      datatype="Double",
+      parameterType="Required",
+      direction="Input")
+    distInc.value = 100
    
-    params = [originPoints, destPoints, networkDataset, numInc, begDist, distInc]
+    params = [originPoints, destPoints, networkDataset, numInc, begDist, distInc, snapDist]
     return params
 
   ###
@@ -508,6 +517,10 @@ class NetworkKFunction(object):
     numInc         = parameters[3].value
     begDist        = parameters[4].value
     distInc        = parameters[5].value
+    snapDist       = parameters[6].value
+
+    #if distInc is None:
+    #  messages.addMessage("Distance increment is none... need to calculate it.")
 
     messages.addMessage("Origin points: {0}".format(originPoints))
     messages.addMessage("Destination points: {0}".format(destPoints))
@@ -515,14 +528,38 @@ class NetworkKFunction(object):
     messages.addMessage("Number of distance increments: {0}".format(numInc))
     messages.addMessage("Beginning distance: {0}".format(begDist))
     messages.addMessage("Distance increment: {0}".format(distInc))
+    messages.addMessage("Snap distance: {0}".format(snapDist))
 
-    #if distInc is None:
-    #  messages.addMessage("Distance increment is none... need to calculate it.")
+    # This is the current map, which should be an OSM base map.
+    curMapDoc = arcpy.mapping.MapDocument("CURRENT")
+
+    # Get the data from from the map (see the DataFrame object of arcpy).
+    dataFrame = arcpy.mapping.ListDataFrames(curMapDoc, "Layers")[0]
 
     for i in range(0, numInc):
       # This is the OD Cost Matrix cutoff.
       cutoff = begDist + i * distInc
       messages.addMessage("Iteration: {0} Cutoff: {1}".format(i, cutoff))
 
-      
+      # Create the cost matrix.
+      costMatResult = arcpy.na.MakeODCostMatrixLayer(networkDataset, "OD Cost Matrix {0}".format(i), "Length", cutoff)
+      odcmLayer     = costMatResult.getOutput(0)
+
+      # The OD Cost Matrix layer will have Origins and Destinations layers.  Get
+      # a reference to each of these.
+      odcmSublayers   = arcpy.na.GetNAClassNames(odcmLayer)
+      odcmOriginLayer = odcmSublayers["Origins"]
+      odcmDestLayer   = odcmSublayers["Destinations"]
+
+      # Add the origins and destinations to the ODCM.
+      arcpy.na.AddLocations(odcmLayer, odcmOriginLayer, originPoints, "", snapDist)
+      arcpy.na.AddLocations(odcmLayer, odcmDestLayer,   destPoints,   "", snapDist)
+
+      # Solve the matrix.
+      arcpy.na.Solve(odcmLayer)
+
+      # Show ODCM layer to the user.
+      arcpy.mapping.AddLayer(dataFrame, odcmLayer, "TOP")
+      arcpy.RefreshTOC()
+
     return
