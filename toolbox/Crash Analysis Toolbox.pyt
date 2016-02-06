@@ -408,7 +408,7 @@ class NetworkKFunction(object):
   ###
   def __init__(self):
     self.label = "Network K Function"
-    self.description = "Usese a Network K Function to analyze clustering and dispersion trends in a set of crash points."
+    self.description = "Uses a Network K Function to analyze clustering and dispersion trends in a set of crash points."
     self.canRunInBackground = False
   
   ###
@@ -490,11 +490,6 @@ class NetworkKFunction(object):
     if arcpy.CheckExtension("Network") != "Available":
       return False
 
-    # Make sure the OSM toolbox can be found.
-    instInfo    = arcpy.GetInstallInfo()
-    osmToolPath = instInfo["InstallDir"] + r"ArcToolbox\Toolboxes\OpenStreetMap Toolbox.tbx"
-    return os.path.isfile(osmToolPath)
-
   ###
   # Validate each input.
   ###
@@ -536,30 +531,38 @@ class NetworkKFunction(object):
     # Get the data from from the map (see the DataFrame object of arcpy).
     dataFrame = arcpy.mapping.ListDataFrames(curMapDoc, "Layers")[0]
 
+    # Create the cost matrix.
+    costMatResult = arcpy.na.MakeODCostMatrixLayer(networkDataset,
+      "ODCM_{0}_{1}_{2}".format(networkDataset, originPoints, destPoints), "Length")
+    odcmLayer     = costMatResult.getOutput(0)
+
+    # The OD Cost Matrix layer will have Origins and Destinations layers.  Get
+    # a reference to each of these.
+    odcmSublayers   = arcpy.na.GetNAClassNames(odcmLayer)
+    odcmOriginLayer = odcmSublayers["Origins"]
+    odcmDestLayer   = odcmSublayers["Destinations"]
+
+    # Add the origins and destinations to the ODCM.
+    arcpy.na.AddLocations(odcmLayer, odcmOriginLayer, originPoints, "", snapDist)
+    arcpy.na.AddLocations(odcmLayer, odcmDestLayer,   destPoints,   "", snapDist)
+
+    # Solve the matrix.
+    arcpy.na.Solve(odcmLayer)
+
+    # Show ODCM layer to the user.
+    arcpy.mapping.AddLayer(dataFrame, odcmLayer, "TOP")
+    arcpy.RefreshTOC()
+
+    # Get the "Lines" layer, which has the distance between each point.
+    #odcmSublayers = arcpy.na.GetNAClassNames(odcmLayer)
+    #messages.addMessage("Sublayers {0}".format(odcmSublayers))
+    odcmLines     = odcmSublayers["ODLines"]
+
     for i in range(0, numInc):
       # This is the OD Cost Matrix cutoff.
       cutoff = begDist + i * distInc
       messages.addMessage("Iteration: {0} Cutoff: {1}".format(i, cutoff))
 
-      # Create the cost matrix.
-      costMatResult = arcpy.na.MakeODCostMatrixLayer(networkDataset, "OD Cost Matrix {0}".format(i), "Length", cutoff)
-      odcmLayer     = costMatResult.getOutput(0)
-
-      # The OD Cost Matrix layer will have Origins and Destinations layers.  Get
-      # a reference to each of these.
-      odcmSublayers   = arcpy.na.GetNAClassNames(odcmLayer)
-      odcmOriginLayer = odcmSublayers["Origins"]
-      odcmDestLayer   = odcmSublayers["Destinations"]
-
-      # Add the origins and destinations to the ODCM.
-      arcpy.na.AddLocations(odcmLayer, odcmOriginLayer, originPoints, "", snapDist)
-      arcpy.na.AddLocations(odcmLayer, odcmDestLayer,   destPoints,   "", snapDist)
-
-      # Solve the matrix.
-      arcpy.na.Solve(odcmLayer)
-
-      # Show ODCM layer to the user.
-      arcpy.mapping.AddLayer(dataFrame, odcmLayer, "TOP")
-      arcpy.RefreshTOC()
+      
 
     return
