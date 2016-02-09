@@ -489,6 +489,7 @@ class NetworkKFunction(object):
     # Network Analyst tools must be available.
     if arcpy.CheckExtension("Network") != "Available":
       return False
+    return True
 
   ###
   # Validate each input.
@@ -554,15 +555,46 @@ class NetworkKFunction(object):
     arcpy.RefreshTOC()
 
     # Get the "Lines" layer, which has the distance between each point.
-    #odcmSublayers = arcpy.na.GetNAClassNames(odcmLayer)
     #messages.addMessage("Sublayers {0}".format(odcmSublayers))
-    odcmLines     = odcmSublayers["ODLines"]
+    odcmLines = odcmSublayers["ODLines"]
 
     for i in range(0, numInc):
-      # This is the OD Cost Matrix cutoff.
-      cutoff = begDist + i * distInc
-      messages.addMessage("Iteration: {0} Cutoff: {1}".format(i, cutoff))
+      # This is the distance band.
+      distBand = begDist + i * distInc
+      messages.addMessage("Iteration: {0} Distance band: {1}".format(i, distBand))
 
-      
+      # The distance between the points must be less than or equal to the
+      # current distance band.
+      if originPoints == destPoints:
+        # The origin and desination points are the same.
+        # The OD Cost Matrix finds lengths on the _combination_ of points.
+        # So, if there are two points, the result will have distances from
+        # 1 to 1, 1 to 2, 2 to 1, and 2 to 2.  The second part of this condition
+        # eliminates distances from a point to itself, and redundancy (e.g. the
+        # distance from 1 to 2 is the same as the distance from 2 to 1).
+        where = """{0} <= {1} AND {2} < {3}""".format(
+          arcpy.AddFieldDelimiters(odcmLines, "Total_Length"),
+          distBand,
+          arcpy.AddFieldDelimiters(odcmLines, "originID"),
+          arcpy.AddFieldDelimiters(odcmLines, "destinationID"))
+      else:
+        where = """{0} <= {1}""".format(
+          arcpy.AddFieldDelimiters(odcmLines, "Total_Length"),
+          distBand)
+
+      messages.addMessage("Where: {0}".format(where))
+
+      cursor = arcpy.da.SearchCursor(
+        in_table=odcmLines,
+        field_names=["Total_Length", "originID", "destinationID"],
+        where_clause=where)
+
+      for row in cursor:
+        totLen   = row[0]
+        originID = row[1]
+        destID   = row[2]
+
+        messages.addMessage("Total_Length: {0} OriginID: {1} DestinationID: {2}".format(
+          totLen, originID, destID))
 
     return
