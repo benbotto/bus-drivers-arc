@@ -558,10 +558,17 @@ class NetworkKFunction(object):
     #messages.addMessage("Sublayers {0}".format(odcmSublayers))
     odcmLines = odcmSublayers["ODLines"]
 
+    # This array will hold all the meta data about each distance band (the
+    # distance band and the number of points within that band).
+    distCount = []
+
     for i in range(0, numInc):
       # This is the distance band.
       distBand = begDist + i * distInc
       messages.addMessage("Iteration: {0} Distance band: {1}".format(i, distBand))
+
+      # Initialize the distance band meta data.
+      distCount.append({"distanceBand": distBand, "count": 0})
 
       # The distance between the points must be less than or equal to the
       # current distance band.
@@ -584,17 +591,19 @@ class NetworkKFunction(object):
 
       messages.addMessage("Where: {0}".format(where))
 
-      cursor = arcpy.da.SearchCursor(
+      with arcpy.da.SearchCursor(
         in_table=odcmLines,
         field_names=["Total_Length", "originID", "destinationID"],
-        where_clause=where)
+        where_clause=where) as cursor:
 
-      for row in cursor:
-        totLen   = row[0]
-        originID = row[1]
-        destID   = row[2]
+        for row in cursor:
+          messages.addMessage("Total_Length: {0} OriginID: {1} DestinationID: {2}".format(
+            row[0], row[1], row[2]))
 
-        messages.addMessage("Total_Length: {0} OriginID: {1} DestinationID: {2}".format(
-          totLen, originID, destID))
+          # Keep track of the total number of points in the current distance band.
+          distCount[i]["count"] += 1
+
+    # distCount now holds the final summation results.
+    messages.addMessage("Distance count: {0}".format(distCount))
 
     return
