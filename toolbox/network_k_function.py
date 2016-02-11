@@ -131,9 +131,15 @@ class NetworkKFunction(object):
     # Get the data from from the map (see the DataFrame object of arcpy).
     dataFrame = arcpy.mapping.ListDataFrames(curMapDoc, "Layers")[0]
 
+    # The name of the ODCM layer.
+    odcmName = "ODCM__{0}__{1}__{2}__{3}__{4}-{5}".format(
+      arcpy.Describe(originPoints).baseName,
+      arcpy.Describe(destPoints).baseName,
+      arcpy.Describe(networkDataset).baseName,
+      numInc, begDist, distInc)
+
     # Create the cost matrix.
-    # TODO: Allow user to pick name.
-    costMatResult = arcpy.na.MakeODCostMatrixLayer(networkDataset, "ODCM_Network_K_Function", "Length")
+    costMatResult = arcpy.na.MakeODCostMatrixLayer(networkDataset, odcmName, "Length")
     odcmLayer     = costMatResult.getOutput(0)
 
     # The OD Cost Matrix layer will have Origins and Destinations layers.  Get
