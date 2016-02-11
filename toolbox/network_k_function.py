@@ -209,6 +209,26 @@ class NetworkKFunction(object):
           distCount[i]["count"] += 1
 
     # distCount now holds the final summation results.
+    messages.addMessage("****************************************************")
     messages.addMessage("Distance count: {0}".format(distCount))
+    messages.addMessage("****************************************************")
 
+    # The length of the network is needed.  Get the edge source(s).
+    ndDesc        = arcpy.Describe(networkDataset)
+    edgeSources   = ndDesc.edgeSources
+    networkLength = 0
+
+    for edgeSource in edgeSources:
+      edgePath = ndDesc.path + "\\" + edgeSource.name
+      messages.addMessage("Edge source for network dataset: Name {0} Path: {1}".format(edgeSource.name, edgePath))
+
+      # Sum up the length of each edge.
+      with arcpy.da.SearchCursor(in_table=edgePath, field_names=["Shape_Length"]) as cursor:
+        for row in cursor:
+          messages.addMessage("Length: {0}".format(row[0]))
+          networkLength += row[0]
+
+    messages.addMessage("****************************************************")
+    messages.addMessage("Total network length: {0}".format(networkLength))
+    messages.addMessage("****************************************************")
     return
