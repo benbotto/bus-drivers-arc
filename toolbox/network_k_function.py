@@ -1,4 +1,5 @@
 import arcpy
+import os
 from arcpy import env
 
 class NetworkKFunction(object):
@@ -222,11 +223,50 @@ class NetworkKFunction(object):
       edgePath = ndDesc.path + "\\" + edgeSource.name
       messages.addMessage("Edge source for network dataset: Name {0} Path: {1}".format(edgeSource.name, edgePath))
 
+      # The edge source must be in a projected coordinate system in order to
+      # calculate the length in units of meters, but a feature class that
+      # participates in a network dataset cannot be projected.  Created a copy
+      # of the edge source.
+      edgeCopyPath     = arcpy.env.workspace
+      edgeCopyName     = "TEMP_{0}".format(edgeSource.name)
+      edgeCopyFullPath = os.path.join(edgeCopyPath, edgeCopyName)
+      arcpy.FeatureClassToFeatureClass_conversion(edgePath, edgeCopyPath, edgeCopyName)
+      messages.addMessage("Created edge copy: {0}".format(edgeCopyFullPath))
+      edgeCopyDesc = arcpy.Describe(edgeCopyFullPath)
+
+      # Make sure that the original coordinate system can be determined.  An
+      # initial coordinate system is required for to complete a projection.
+      messages.addMessage("Original spatial reference: {0}".format(edgeCopyDesc.spatialReference.name))
+
+      if edgeCopyDesc.spatialReference.name == "Unknown":
+        messages.addMessage("Fatal error -- original projection unknown.")
+        return
+
+      # Make a projected version of the temporary feature class so that the length
+      # can be calculated in meters.
+      projEdgeName     = "TEMP_PROJECTED_{0}".format(edgeSource.name)
+      projEdgePath     = arcpy.env.workspace
+      projEdgeFullPath = os.path.join(projEdgePath, projEdgeName)
+
+      # TODO: Allow user to pick the projected coordinate system.  When updating the spaces
+      # might present a problem since the normal name has underscores.  It seems like it is possible
+      # to use the ID.
+      # http://pro.arcgis.com/en/pro-app/arcpy/classes/spatialreference.htm
+      outCordSys   = arcpy.SpatialReference("NAD 1983 UTM Zone 10N")
+      arcpy.Project_management(edgeCopyFullPath, projEdgeName, outCordSys)
+      messages.addMessage("Created projected version of edge source: {0}".format(projEdgeFullPath))
+
+      # Delete the temporary feature class.
+      arcpy.Delete_management(edgeCopyFullPath)
+
       # Sum up the length of each edge.
-      with arcpy.da.SearchCursor(in_table=edgePath, field_names=["Shape_Length"]) as cursor:
+      with arcpy.da.SearchCursor(in_table=projEdgeFullPath, field_names=["Shape_Length"]) as cursor:
         for row in cursor:
           messages.addMessage("Length: {0}".format(row[0]))
           networkLength += row[0]
+
+      # Delete the temporary projected feature class.
+      arcpy.Delete_management(projEdgeFullPath)
 
     messages.addMessage("****************************************************")
     messages.addMessage("Total network length: {0}".format(networkLength))
