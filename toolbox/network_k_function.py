@@ -79,9 +79,17 @@ class NetworkKFunction(object):
       datatype="Double",
       parameterType="Required",
       direction="Input")
-    distInc.value = 100
+    snapDist.value = 25
+
+    # Eigth parameter: projected coordinate system.
+    outCoordSys = arcpy.Parameter(
+      displayName="Output Network Dataset Length Projected Coordinate System",
+      name="coordinate_system",
+      datatype="GPSpatialReference",
+      parameterType="Required",
+      direction="Input")
    
-    params = [originPoints, destPoints, networkDataset, numInc, begDist, distInc, snapDist]
+    params = [originPoints, destPoints, networkDataset, numInc, begDist, distInc, snapDist, outCoordSys]
     return params
 
   ###
@@ -92,15 +100,29 @@ class NetworkKFunction(object):
     return arcpy.CheckExtension("Network") == "Available"
 
   ###
-  # Validate each input.
+  # Set parameter defaults.
   ###
   def updateParameters(self, parameters):
+    originPoints = parameters[0]
+    destPoints   = parameters[1]
+
+    if originPoints.value is not None and destPoints.value is None:
+      parameters[1].value = arcpy.Describe(parameters[0].value).catalogPath
     return
 
   ###
   # If any fields are invalid, show an appropriate error message.
   ###
   def updateMessages(self, parameters):
+    outCoordSys = parameters[7].value
+
+    if outCoordSys is not None:
+      if outCoordSys.projectionName == "":
+        parameters[7].setErrorMessage("Output coordinate system must be a projected coordinate system.")
+      elif outCoordSys.linearUnitName != "Meter":
+        parameters[7].setErrorMessage("Output coordinate system must have a linear unit code of 'Meter.'")
+      else:
+        parameters[7].clearMessage()
     return
 
   ###
@@ -114,9 +136,9 @@ class NetworkKFunction(object):
     begDist        = parameters[4].value
     distInc        = parameters[5].value
     snapDist       = parameters[6].value
-
-    #if distInc is None:
-    #  messages.addMessage("Distance increment is none... need to calculate it.")
+    outCoordSys    = parameters[7].value
+    wsPath         = arcpy.env.workspace
+    ndDesc         = arcpy.Describe(networkDataset)
 
     messages.addMessage("Origin points: {0}".format(originPoints))
     messages.addMessage("Destination points: {0}".format(destPoints))
@@ -125,6 +147,7 @@ class NetworkKFunction(object):
     messages.addMessage("Beginning distance: {0}".format(begDist))
     messages.addMessage("Distance increment: {0}".format(distInc))
     messages.addMessage("Snap distance: {0}".format(snapDist))
+    messages.addMessage("Network dataset length projected coordinate system: {0}".format(outCoordSys.name))
 
     # This is the current map, which should be an OSM base map.
     curMapDoc = arcpy.mapping.MapDocument("CURRENT")
@@ -136,7 +159,7 @@ class NetworkKFunction(object):
     odcmName = "ODCM__{0}__{1}__{2}__{3}__{4}-{5}".format(
       arcpy.Describe(originPoints).baseName,
       arcpy.Describe(destPoints).baseName,
-      arcpy.Describe(networkDataset).baseName,
+      ndDesc.baseName,
       numInc, begDist, distInc)
 
     # Create the cost matrix.
@@ -214,61 +237,31 @@ class NetworkKFunction(object):
     messages.addMessage("Distance count: {0}".format(distCount))
     messages.addMessage("****************************************************")
 
-    # The length of the network is needed.  Get the edge source(s).
-    ndDesc        = arcpy.Describe(networkDataset)
-    edgeSources   = ndDesc.edgeSources
+    # The Network Dataset Length tool is used to find the length of the
+    # network.  Import that tool's toolbox; it's is in the Crash
+    # Analysis Toolbox (this tool's toolbox).
+    toolboxPath     = os.path.dirname(os.path.abspath(__file__))
+    toolboxName     = "Crash Analysis Toolbox.pyt"
+    toolboxFullPath = os.path.join(toolboxPath, toolboxName)
+    messages.addMessage("Importing toolbox: {0}".format(toolboxFullPath))
+    arcpy.ImportToolbox(toolboxFullPath)
+
+    # The length will get stored in a temporary table.
+    lenTblName     = "TEMP_LENGTH_{0}".format(ndDesc.baseName)
+    lenTblFullPath = os.path.join(wsPath, lenTblName)
+    messages.addMessage("Storing length in: {0}".format(lenTblFullPath))
+    arcpy.NetworkDatasetLength_crashAnalysis(networkDataset, outCoordSys, lenTblFullPath)
+
+    # Pull the length from the temporary length table.
     networkLength = 0
-
-    for edgeSource in edgeSources:
-      edgePath = ndDesc.path + "\\" + edgeSource.name
-      messages.addMessage("Edge source for network dataset: Name {0} Path: {1}".format(edgeSource.name, edgePath))
-
-      # The edge source must be in a projected coordinate system in order to
-      # calculate the length in units of meters, but a feature class that
-      # participates in a network dataset cannot be projected.  Created a copy
-      # of the edge source.
-      edgeCopyPath     = arcpy.env.workspace
-      edgeCopyName     = "TEMP_{0}".format(edgeSource.name)
-      edgeCopyFullPath = os.path.join(edgeCopyPath, edgeCopyName)
-      arcpy.FeatureClassToFeatureClass_conversion(edgePath, edgeCopyPath, edgeCopyName)
-      messages.addMessage("Created edge copy: {0}".format(edgeCopyFullPath))
-      edgeCopyDesc = arcpy.Describe(edgeCopyFullPath)
-
-      # Make sure that the original coordinate system can be determined.  An
-      # initial coordinate system is required for to complete a projection.
-      messages.addMessage("Original spatial reference: {0}".format(edgeCopyDesc.spatialReference.name))
-
-      if edgeCopyDesc.spatialReference.name == "Unknown":
-        messages.addMessage("Fatal error -- original projection unknown.")
-        return
-
-      # Make a projected version of the temporary feature class so that the length
-      # can be calculated in meters.
-      projEdgeName     = "TEMP_PROJECTED_{0}".format(edgeSource.name)
-      projEdgePath     = arcpy.env.workspace
-      projEdgeFullPath = os.path.join(projEdgePath, projEdgeName)
-
-      # TODO: Allow user to pick the projected coordinate system.  When updating the spaces
-      # might present a problem since the normal name has underscores.  It seems like it is possible
-      # to use the ID.
-      # http://pro.arcgis.com/en/pro-app/arcpy/classes/spatialreference.htm
-      outCordSys   = arcpy.SpatialReference("NAD 1983 UTM Zone 10N")
-      arcpy.Project_management(edgeCopyFullPath, projEdgeName, outCordSys)
-      messages.addMessage("Created projected version of edge source: {0}".format(projEdgeFullPath))
-
-      # Delete the temporary feature class.
-      arcpy.Delete_management(edgeCopyFullPath)
-
-      # Sum up the length of each edge.
-      with arcpy.da.SearchCursor(in_table=projEdgeFullPath, field_names=["Shape_Length"]) as cursor:
-        for row in cursor:
-          messages.addMessage("Length: {0}".format(row[0]))
-          networkLength += row[0]
-
-      # Delete the temporary projected feature class.
-      arcpy.Delete_management(projEdgeFullPath)
+    with arcpy.da.SearchCursor(in_table=lenTblFullPath, field_names=["Network_Dataset_Length"]) as cursor:
+      for row in cursor:
+        networkLength += row[0]
 
     messages.addMessage("****************************************************")
     messages.addMessage("Total network length: {0}".format(networkLength))
     messages.addMessage("****************************************************")
+
+    # Delete the temporary network length storage.
+    arcpy.Delete_management(lenTblFullPath)
     return

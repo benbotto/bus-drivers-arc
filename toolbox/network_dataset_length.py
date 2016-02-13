@@ -65,8 +65,6 @@ class NetworkDatasetLength(object):
     if outCoordSys is not None:
       if outCoordSys.projectionName == "":
         parameters[1].setErrorMessage("Output coordinate system must be a projected coordinate system.")
-      elif outCoordSys.linearUnitName != "Meter":
-        parameters[1].setErrorMessage("Output coordinate system must have a linear unit code of 'Meter.'")
       else:
         parameters[1].clearMessage()
     return

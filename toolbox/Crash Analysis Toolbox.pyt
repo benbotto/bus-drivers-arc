@@ -19,7 +19,7 @@ from crash_network_density import CrashNetworkDensity
 from network_k_function import NetworkKFunction
 from network_dataset_length import NetworkDatasetLength
 
-class CrashAnalysisToolbox(object):
+class Toolbox(object):
   def __init__(self):
 
     """Define the toolbox (the name of the toolbox is the name of the
