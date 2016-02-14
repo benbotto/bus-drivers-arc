@@ -88,7 +88,7 @@ class NetworkDatasetLength(object):
     networkLength = 0
 
     for edgeSource in edgeSources:
-      edgePath = ndDesc.path + "\\" + edgeSource.name
+      edgePath = os.path.join(ndDesc.path, edgeSource.name)
       messages.addMessage("Edge source for network dataset: Name {0} Path: {1}".format(edgeSource.name, edgePath))
 
       # The edge source must be in a projected coordinate system in order to
