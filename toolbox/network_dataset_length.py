@@ -71,7 +71,6 @@ class NetworkDatasetLength(object):
       if outCoordSys is None:
         # If the network dataset's coordinate system is a projected one,
         # use its coordinate system as the defualt.
-        
         if ndDesc.spatialReference.projectionName != "":
           parameters[1].value = ndDesc.spatialReference.factoryCode
 
