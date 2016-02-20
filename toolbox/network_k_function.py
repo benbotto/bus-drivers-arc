@@ -103,11 +103,23 @@ class NetworkKFunction(object):
   # Set parameter defaults.
   ###
   def updateParameters(self, parameters):
-    originPoints = parameters[0]
-    destPoints   = parameters[1]
+    originPoints   = parameters[0].value
+    destPoints     = parameters[1].value
+    networkDataset = parameters[2].value
+    outCoordSys    = parameters[7].value
 
-    if originPoints.value is not None and destPoints.value is None:
-      parameters[1].value = arcpy.Describe(parameters[0].value).catalogPath
+    # Default the dest points to the origin points.
+    if originPoints is not None and destPoints is None:
+      parameters[1].value = arcpy.Describe(originPoints).catalogPath
+
+    # Default the coordinate system.
+    if networkDataset is not None and outCoordSys is None:
+      ndDesc = arcpy.Describe(networkDataset)
+      # If the network dataset's coordinate system is a projected one,
+      # use its coordinate system as the defualt.
+      if ndDesc.spatialReference.projectionName != "" and ndDesc.spatialReference.linearUnitName == "Meter":
+        parameters[7].value = ndDesc.spatialReference.factoryCode
+
     return
 
   ###
@@ -250,7 +262,7 @@ class NetworkKFunction(object):
     lenTblName     = "TEMP_LENGTH_{0}".format(ndDesc.baseName)
     lenTblFullPath = os.path.join(wsPath, lenTblName)
     messages.addMessage("Storing length in: {0}".format(lenTblFullPath))
-    arcpy.NetworkDatasetLength_crashAnalysis(networkDataset, outCoordSys, lenTblFullPath)
+    arcpy.NetworkDatasetLength_crashAnalysis(networkDataset, outCoordSys, wsPath, lenTblName)
 
     # Pull the length from the temporary length table.
     networkLength = 0
