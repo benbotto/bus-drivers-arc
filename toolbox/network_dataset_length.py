@@ -1,6 +1,5 @@
 import arcpy
 import os
-from arcpy import env
 
 class NetworkDatasetLength(object):
   ###
@@ -8,10 +7,10 @@ class NetworkDatasetLength(object):
   ###
   def __init__(self):
     self.label = "Network Dataset Length"
-    self.description = "Calculates the total length of a network dataset in meters."
+    self.description = "Calculates the total length of a network dataset."
     self.canRunInBackground = False
 
-    env.overwriteOutput = True
+    arcpy.env.overwriteOutput = True
 
   ###
   # Get input from the users.
@@ -33,15 +32,24 @@ class NetworkDatasetLength(object):
       parameterType="Required",
       direction="Input")
 
-    # Third parameter: projected coordinate system.
+    # Third parameter: output location.
+    outLocation = arcpy.Parameter(
+      displayName="Location to Output Network Dataset Length Table",
+      name="out_location",
+      datatype="DEWorkspace",
+      parameterType="Required",
+      direction="Input")
+    outLocation.value = arcpy.env.workspace
+
+    # Fourth parameter: name of the length table.
     outTable = arcpy.Parameter(
-      displayName="Output Network Dataset Length Table",
-      name="out_feature_class",
-      datatype="DETable",
+      displayName="Output Network Dataset Length Table Name",
+      name="out_length_table_name",
+      datatype="GPString",
       parameterType="Required",
       direction="Output")
 
-    params = [networkDataset, outCoordSys, outTable]
+    params = [networkDataset, outCoordSys, outLocation, outTable]
     return params
 
   ###
@@ -51,9 +59,26 @@ class NetworkDatasetLength(object):
     return True
 
   ###
-  # Validate each input.
+  # Set the defaults for parameters.
   ###
   def updateParameters(self, parameters):
+    networkDataset = parameters[0].value
+    outCoordSys    = parameters[1].value
+    outTable       = parameters[3].value
+    
+    if networkDataset is not None:
+      ndDesc = arcpy.Describe(networkDataset)
+      if outCoordSys is None:
+        # If the network dataset's coordinate system is a projected one,
+        # use its coordinate system as the defualt.
+        
+        if ndDesc.spatialReference.projectionName != "":
+          parameters[1].value = ndDesc.spatialReference.factoryCode
+
+      if outTable is None:
+        # Default for the output table name.
+        parameters[3].value = ndDesc.name + "_Length"
+
     return
 
   ###
@@ -75,12 +100,14 @@ class NetworkDatasetLength(object):
   def execute(self, parameters, messages):
     networkDataset = parameters[0].valueAsText
     outCoordSys    = parameters[1].value
-    outTable       = parameters[2].value
+    outPath        = parameters[2].value
+    outTable       = parameters[3].value
     wsPath         = arcpy.env.workspace
 
     messages.addMessage("Network dataset: {0}".format(networkDataset))
     messages.addMessage("Network dataset length projected coordinate system: {0}".format(outCoordSys.name))
-    messages.addMessage("Network dataset length feature class: {0}".format(outTable))
+    messages.addMessage("Location to output network dataset length table: {0}".format(outPath))
+    messages.addMessage("Network dataset length table name: {0}".format(outTable))
 
     # The length of the network is needed.  Get the edge source(s).
     ndDesc        = arcpy.Describe(networkDataset)
@@ -135,10 +162,9 @@ class NetworkDatasetLength(object):
     messages.addMessage("****************************************************")
 
     # Create the output table.
-    outTableDesc = arcpy.Describe(outTable)
-    arcpy.CreateTable_management(outTableDesc.path, outTableDesc.name)
+    arcpy.CreateTable_management(outPath, outTable)
     arcpy.AddField_management(outTable, "Network_Dataset_Length", "DOUBLE")
-    arcpy.AddField_management(outTable, "Network_Dataset_Name", "TEXT")
+    arcpy.AddField_management(outTable, "Network_Dataset_Name",   "TEXT")
 
     # Insert the length.
     with arcpy.da.InsertCursor(outTable, ["Network_Dataset_Length", "Network_Dataset_Name"]) as cursor:
