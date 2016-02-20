@@ -24,11 +24,20 @@ class NetworkDatasetRandomPoints(object):
       parameterType="Required",
       direction="Input")
 
-    # Second paramter: the random point feature class to create.
+    # Second parameter: output location.
+    outLocation = arcpy.Parameter(
+      displayName="Location to Output Random Point Feature Class",
+      name="out_location",
+      datatype="DEWorkspace",
+      parameterType="Required",
+      direction="Input")
+    outLocation.value = arcpy.env.workspace
+
+    # Third paramter: the random point feature class to create.
     outPointClass = arcpy.Parameter(
-      displayName="Output Random Point Feature Class",
+      displayName="Output Random Point Feature Class Name",
       name = "output_point_feature_class",
-      datatype="DEFeatureClass",
+      datatype="GPString",
       parameterType="Required",
       direction="Output")
 
@@ -39,7 +48,7 @@ class NetworkDatasetRandomPoints(object):
       parameterType="Required",
       direction="Input")
 
-    params = [networkDataset, outPointClass, numPoints]
+    params = [networkDataset, outLocation, outPointClass, numPoints]
     return params
 
   ###
@@ -49,16 +58,22 @@ class NetworkDatasetRandomPoints(object):
     return True
 
   ###
-  # Validate each input.
+  # Set the parameter defaults.
   ###
   def updateParameters(self, parameters):
+    networkDataset = parameters[0].value
+    outPointClass  = parameters[2].value
+    if networkDataset is not None and outPointClass is None:
+      # Default name for the output table.
+      ndDesc = arcpy.Describe(networkDataset)
+      parameters[2].value = ndDesc.name + "_Random_Points"
     return
 
   ###
   # If any fields are invalid, show an appropriate error message.
   ###
   def updateMessages(self, parameters):
-    numPoints = parameters[2].value
+    numPoints = parameters[3].value
 
     if numPoints is not None:
       if numPoints <= 0:
@@ -72,15 +87,16 @@ class NetworkDatasetRandomPoints(object):
   ###
   def execute(self, parameters, messages):
     networkDataset    = parameters[0].value
-    outPointClass     = parameters[1].value
-    numPoints         = parameters[2].value
+    outPath           = parameters[1].value
+    outPointClass     = parameters[2].value
+    numPoints         = parameters[3].value
 
     wsPath            = arcpy.env.workspace
     ndDesc            = arcpy.Describe(networkDataset)
-    outPointClassDesc = arcpy.Describe(outPointClass)
 
     messages.addMessage("Network Dataset: {0}".format(ndDesc.catalogPath))
-    messages.addMessage("Output Random Point Feature Class: {0}".format(outPointClassDesc.catalogPath))
+    messages.addMessage("Location to Output Random Point Feature Class: {0}".format(outPath))
+    messages.addMessage("Output Random Point Feature Class: {0}".format(outPointClass))
     messages.addMessage("Number of Points: {0}".format(numPoints))
 
     # All the edge sources that make up the network dataset are combined into
@@ -112,13 +128,9 @@ class NetworkDatasetRandomPoints(object):
     arcpy.UnsplitLine_management(lineClassFullPath, singleLineFullPath)
 
     # Create a series of random points on the new line class.
-    randPointName     = outPointClassDesc.name
-    randPointPath     = outPointClassDesc.path
-    randPointFullPath = outPointClassDesc.catalogPath
-
-    messages.addMessage("Creating point feature class.  Name: {0} Path: {1} Full path: {2}"
-      .format(randPointName, randPointPath, randPointFullPath))
-    arcpy.CreateRandomPoints_management(out_path=randPointPath, out_name=randPointName,
+    messages.addMessage("Creating point feature class.  Name: {0} Path: {1}"
+      .format(outPointClass, outPath))
+    arcpy.CreateRandomPoints_management(out_path=outPath, out_name=outPointClass,
       constraining_feature_class=singleLineFullPath, number_of_points_or_field=numPoints)
 
     # Clean up the temporary feature class.
