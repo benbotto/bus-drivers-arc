@@ -1,5 +1,10 @@
 import arcpy
 import os
+import network_k_calculation
+
+network_k_calculation = reload(network_k_calculation)
+
+from network_k_calculation import NetworkKCalculation
 from arcpy import env
 
 class NetworkKFunction(object):
@@ -35,15 +40,12 @@ class NetworkKFunction(object):
       direction="Input")
 
     # Third parameter: number of distance increments.
-    numInc = arcpy.Parameter(
-      displayName="Input Number of Distance Increments",
-      name="dist_increment",
+    numBands = arcpy.Parameter(
+      displayName="Input Number of Distance Bands",
+      name="num_dist_bands",
       datatype="Long",
-      parameterType="Required",
+      parameterType="Optional",
       direction="Input")
-    numInc.filter.type  = "Range"
-    numInc.filter.list  = [1, 100]
-    numInc.value        = 10
 
     # Fourth parameter: beginning distance.
     begDist = arcpy.Parameter(
@@ -80,7 +82,7 @@ class NetworkKFunction(object):
       parameterType="Required",
       direction="Input")
    
-    params = [points, networkDataset, numInc, begDist, distInc, snapDist, outCoordSys]
+    params = [points, networkDataset, numBands, begDist, distInc, snapDist, outCoordSys]
     return params
 
   ###
@@ -128,7 +130,7 @@ class NetworkKFunction(object):
   def execute(self, parameters, messages):
     points         = parameters[0].valueAsText
     networkDataset = parameters[1].valueAsText
-    numInc         = parameters[2].value
+    numBands       = parameters[2].value
     begDist        = parameters[3].value
     distInc        = parameters[4].value
     snapDist       = parameters[5].value
@@ -140,7 +142,7 @@ class NetworkKFunction(object):
 
     messages.addMessage("Origin points: {0}".format(points))
     messages.addMessage("Network dataset: {0}".format(networkDataset))
-    messages.addMessage("Number of distance increments: {0}".format(numInc))
+    messages.addMessage("Number of distance bands: {0}".format(numBands))
     messages.addMessage("Beginning distance: {0}".format(begDist))
     messages.addMessage("Distance increment: {0}".format(distInc))
     messages.addMessage("Snap distance: {0}".format(snapDist))
@@ -153,8 +155,8 @@ class NetworkKFunction(object):
     dataFrame = arcpy.mapping.ListDataFrames(curMapDoc, "Layers")[0]
 
     # The name of the ODCM layer.
-    odcmName = "ODCM__{0}__{1}__{2}__{3}-{4}".format(
-      pointsDesc.baseName, ndDesc.baseName, numInc, begDist, distInc)
+    odcmName = "ODCM__{0}__{1}__{2}__{3}".format(
+      pointsDesc.baseName, ndDesc.baseName, begDist, distInc)
 
     # Create the cost matrix.
     costMatResult = arcpy.na.MakeODCostMatrixLayer(networkDataset, odcmName, "Length")
@@ -181,52 +183,25 @@ class NetworkKFunction(object):
     #messages.addMessage("Sublayers {0}".format(odcmSublayers))
     odcmLines = odcmSublayers["ODLines"]
 
-    # This array will hold all the meta data about each distance band (the
-    # distance band and the number of points within that band).
-    distCount = []
+    # This array will hold all the OD distances.
+    odDists = []
 
-    for i in range(0, numInc):
-      # This is the distance band.
-      distBand = begDist + i * distInc
-      messages.addMessage("Iteration: {0} Distance band: {1}".format(i, distBand))
+    # Get all the data from the distance data from the ODCM where the
+    # origin and destination are not the same.
+    where = """{0} <> {1}""".format(
+      arcpy.AddFieldDelimiters(odcmLines, "originID"),
+      arcpy.AddFieldDelimiters(odcmLines, "destinationID"))
 
-      # Initialize the distance band meta data.
-      distCount.append({"distanceBand": distBand, "count": 0})
+    with arcpy.da.SearchCursor(
+      in_table=odcmLines,
+      field_names=["Total_Length", "originID", "destinationID"],
+      where_clause=where) as cursor:
 
-      # The distance between the points must be less than or equal to the
-      # current distance band.
-      #
-      # The origin and desination points are the same.
-      #
-      # The OD Cost Matrix finds lengths on the _combination_ of points.
-      # So, if there are two points, the result will have distances from
-      # 1 to 1, 1 to 2, 2 to 1, and 2 to 2.  The second part of this condition
-      # eliminates distances from a point to itself.
-      #
-      # Redundancy (e.g. the distance from 1 to 2 is the same as the distance
-      # from 2 to 1) is retained per Dr. Khan.
-      where = """{0} <= {1} AND {2} <> {3}""".format(
-        arcpy.AddFieldDelimiters(odcmLines, "Total_Length"),
-        distBand,
-        arcpy.AddFieldDelimiters(odcmLines, "originID"),
-        arcpy.AddFieldDelimiters(odcmLines, "destinationID"))
-      messages.addMessage("Where: {0}".format(where))
+      for row in cursor:
+        odDists.append({"Total_Length": row[0], "OriginID": row[1], "DestinationID": row[2]})
 
-      with arcpy.da.SearchCursor(
-        in_table=odcmLines,
-        field_names=["Total_Length", "originID", "destinationID"],
-        where_clause=where) as cursor:
-
-        for row in cursor:
-          messages.addMessage("Total_Length: {0} OriginID: {1} DestinationID: {2}"
-            .format(row[0], row[1], row[2]))
-
-          # Keep track of the total number of points in the current distance band.
-          distCount[i]["count"] += 1
-
-    # distCount now holds the final summation results.
     messages.addMessage("****************************************************")
-    messages.addMessage("Distance count: {0}".format(distCount))
+    messages.addMessage("ODCM Distances: {0}".format(odDists))
     messages.addMessage("****************************************************")
 
     # The Network Dataset Length tool is used to find the length of the
@@ -257,12 +232,11 @@ class NetworkKFunction(object):
     # Delete the temporary network length storage.
     arcpy.Delete_management(lenTblFullPath)
 
-    # Find the total number of crashes.
-    numPoints = 0
-    with arcpy.da.SearchCursor(in_table=points, field_names=["OID@"]) as cursor:
-      for row in cursor:
-        numPoints += 1
-
-    messages.addMessage("Total number of points: {0}".format(numPoints))
+    # Do the actual calculation.
+    netKCalc = NetworkKCalculation(networkLength, odDists, begDist, distInc, numBands)
+    messages.addMessage("Sorted: {0}".format(netKCalc.getDistances()))
+    messages.addMessage("Number of points: {0}".format(netKCalc.getNumberOfPoints()))
+    messages.addMessage("Density: {0}".format(netKCalc.getPointNetworkDensity()))
+    messages.addMessage("Distance bands: {0}".format(netKCalc.getDistanceBands()))
 
     return
