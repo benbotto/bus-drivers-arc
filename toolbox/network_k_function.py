@@ -18,24 +18,15 @@ class NetworkKFunction(object):
   ###
   def getParameterInfo(self):
     # First parameter: input origin features.
-    originPoints = arcpy.Parameter(
+    points = arcpy.Parameter(
       displayName="Input Origin Feature Dataset",
       name="origin_points",
       datatype="Feature Class",
       parameterType="Required",
       direction="Input")
-    originPoints.filter.list = ["Point"]
+    points.filter.list = ["Point"]
 
-    # Second parameter: input destination features.
-    destPoints = arcpy.Parameter(
-      displayName="Input Destination Feature Dataset",
-      name="dest_points",
-      datatype="Feature Class",
-      parameterType="Required",
-      direction="Input")
-    destPoints.filter.list = ["Point"]
-
-    # Third parameter: network dataset.
+    # Second parameter: network dataset.
     networkDataset = arcpy.Parameter(
       displayName="Existing Network Dataset",
       name = "network_dataset",
@@ -43,7 +34,7 @@ class NetworkKFunction(object):
       parameterType="Required",
       direction="Input")
 
-    # Fourth parameter: number of distance increments.
+    # Third parameter: number of distance increments.
     numInc = arcpy.Parameter(
       displayName="Input Number of Distance Increments",
       name="dist_increment",
@@ -54,7 +45,7 @@ class NetworkKFunction(object):
     numInc.filter.list  = [1, 100]
     numInc.value        = 10
 
-    # Fifth parameter: beginning distance.
+    # Fourth parameter: beginning distance.
     begDist = arcpy.Parameter(
       displayName="Input Beginning Distance",
       name="beginning_distance",
@@ -63,7 +54,7 @@ class NetworkKFunction(object):
       direction="Input")
     begDist.value = 0
 
-    # Sixth parameter: distance increment.
+    # Fifth parameter: distance increment.
     distInc = arcpy.Parameter(
       displayName="Input Distance Increment",
       name="distance_increment",
@@ -72,7 +63,7 @@ class NetworkKFunction(object):
       direction="Input")
     distInc.value = 1000
 
-    # Seventh parameter: snap distance.
+    # Sixth parameter: snap distance.
     snapDist = arcpy.Parameter(
       displayName="Input Snap Distance",
       name="snap_distance",
@@ -81,7 +72,7 @@ class NetworkKFunction(object):
       direction="Input")
     snapDist.value = 25
 
-    # Eigth parameter: projected coordinate system.
+    # Seventh parameter: projected coordinate system.
     outCoordSys = arcpy.Parameter(
       displayName="Output Network Dataset Length Projected Coordinate System",
       name="coordinate_system",
@@ -89,7 +80,7 @@ class NetworkKFunction(object):
       parameterType="Required",
       direction="Input")
    
-    params = [originPoints, destPoints, networkDataset, numInc, begDist, distInc, snapDist, outCoordSys]
+    params = [points, networkDataset, numInc, begDist, distInc, snapDist, outCoordSys]
     return params
 
   ###
@@ -103,14 +94,8 @@ class NetworkKFunction(object):
   # Set parameter defaults.
   ###
   def updateParameters(self, parameters):
-    originPoints   = parameters[0].value
-    destPoints     = parameters[1].value
-    networkDataset = parameters[2].value
-    outCoordSys    = parameters[7].value
-
-    # Default the dest points to the origin points.
-    if originPoints is not None and destPoints is None:
-      parameters[1].value = arcpy.Describe(originPoints).catalogPath
+    networkDataset = parameters[1].value
+    outCoordSys    = parameters[6].value
 
     # Default the coordinate system.
     if networkDataset is not None and outCoordSys is None:
@@ -118,7 +103,7 @@ class NetworkKFunction(object):
       # If the network dataset's coordinate system is a projected one,
       # use its coordinate system as the defualt.
       if ndDesc.spatialReference.projectionName != "" and ndDesc.spatialReference.linearUnitName == "Meter":
-        parameters[7].value = ndDesc.spatialReference.factoryCode
+        parameters[6].value = ndDesc.spatialReference.factoryCode
 
     return
 
@@ -126,34 +111,34 @@ class NetworkKFunction(object):
   # If any fields are invalid, show an appropriate error message.
   ###
   def updateMessages(self, parameters):
-    outCoordSys = parameters[7].value
+    outCoordSys = parameters[6].value
 
     if outCoordSys is not None:
       if outCoordSys.projectionName == "":
-        parameters[7].setErrorMessage("Output coordinate system must be a projected coordinate system.")
+        parameters[6].setErrorMessage("Output coordinate system must be a projected coordinate system.")
       elif outCoordSys.linearUnitName != "Meter":
-        parameters[7].setErrorMessage("Output coordinate system must have a linear unit code of 'Meter.'")
+        parameters[6].setErrorMessage("Output coordinate system must have a linear unit code of 'Meter.'")
       else:
-        parameters[7].clearMessage()
+        parameters[6].clearMessage()
     return
 
   ###
   # Execute the tool.
   ###
   def execute(self, parameters, messages):
-    originPoints   = parameters[0].valueAsText
-    destPoints     = parameters[1].valueAsText
-    networkDataset = parameters[2].valueAsText
-    numInc         = parameters[3].value
-    begDist        = parameters[4].value
-    distInc        = parameters[5].value
-    snapDist       = parameters[6].value
-    outCoordSys    = parameters[7].value
+    points         = parameters[0].valueAsText
+    networkDataset = parameters[1].valueAsText
+    numInc         = parameters[2].value
+    begDist        = parameters[3].value
+    distInc        = parameters[4].value
+    snapDist       = parameters[5].value
+    outCoordSys    = parameters[6].value
+    
     wsPath         = arcpy.env.workspace
+    pointsDesc     = arcpy.Describe(points)
     ndDesc         = arcpy.Describe(networkDataset)
 
-    messages.addMessage("Origin points: {0}".format(originPoints))
-    messages.addMessage("Destination points: {0}".format(destPoints))
+    messages.addMessage("Origin points: {0}".format(points))
     messages.addMessage("Network dataset: {0}".format(networkDataset))
     messages.addMessage("Number of distance increments: {0}".format(numInc))
     messages.addMessage("Beginning distance: {0}".format(begDist))
@@ -168,11 +153,8 @@ class NetworkKFunction(object):
     dataFrame = arcpy.mapping.ListDataFrames(curMapDoc, "Layers")[0]
 
     # The name of the ODCM layer.
-    odcmName = "ODCM__{0}__{1}__{2}__{3}__{4}-{5}".format(
-      arcpy.Describe(originPoints).baseName,
-      arcpy.Describe(destPoints).baseName,
-      ndDesc.baseName,
-      numInc, begDist, distInc)
+    odcmName = "ODCM__{0}__{1}__{2}__{3}-{4}".format(
+      pointsDesc.baseName, ndDesc.baseName, numInc, begDist, distInc)
 
     # Create the cost matrix.
     costMatResult = arcpy.na.MakeODCostMatrixLayer(networkDataset, odcmName, "Length")
@@ -185,8 +167,8 @@ class NetworkKFunction(object):
     odcmDestLayer   = odcmSublayers["Destinations"]
 
     # Add the origins and destinations to the ODCM.
-    arcpy.na.AddLocations(odcmLayer, odcmOriginLayer, originPoints, "", snapDist)
-    arcpy.na.AddLocations(odcmLayer, odcmDestLayer,   destPoints,   "", snapDist)
+    arcpy.na.AddLocations(odcmLayer, odcmOriginLayer, points, "", snapDist)
+    arcpy.na.AddLocations(odcmLayer, odcmDestLayer,   points, "", snapDist)
 
     # Solve the matrix.
     arcpy.na.Solve(odcmLayer)
@@ -213,23 +195,21 @@ class NetworkKFunction(object):
 
       # The distance between the points must be less than or equal to the
       # current distance band.
-      if originPoints == destPoints:
-        # The origin and desination points are the same.
-        # The OD Cost Matrix finds lengths on the _combination_ of points.
-        # So, if there are two points, the result will have distances from
-        # 1 to 1, 1 to 2, 2 to 1, and 2 to 2.  The second part of this condition
-        # eliminates distances from a point to itself, and redundancy (e.g. the
-        # distance from 1 to 2 is the same as the distance from 2 to 1).
-        where = """{0} <= {1} AND {2} < {3}""".format(
-          arcpy.AddFieldDelimiters(odcmLines, "Total_Length"),
-          distBand,
-          arcpy.AddFieldDelimiters(odcmLines, "originID"),
-          arcpy.AddFieldDelimiters(odcmLines, "destinationID"))
-      else:
-        where = """{0} <= {1}""".format(
-          arcpy.AddFieldDelimiters(odcmLines, "Total_Length"),
-          distBand)
-
+      #
+      # The origin and desination points are the same.
+      #
+      # The OD Cost Matrix finds lengths on the _combination_ of points.
+      # So, if there are two points, the result will have distances from
+      # 1 to 1, 1 to 2, 2 to 1, and 2 to 2.  The second part of this condition
+      # eliminates distances from a point to itself.
+      #
+      # Redundancy (e.g. the distance from 1 to 2 is the same as the distance
+      # from 2 to 1) is retained per Dr. Khan.
+      where = """{0} <= {1} AND {2} <> {3}""".format(
+        arcpy.AddFieldDelimiters(odcmLines, "Total_Length"),
+        distBand,
+        arcpy.AddFieldDelimiters(odcmLines, "originID"),
+        arcpy.AddFieldDelimiters(odcmLines, "destinationID"))
       messages.addMessage("Where: {0}".format(where))
 
       with arcpy.da.SearchCursor(
@@ -238,8 +218,8 @@ class NetworkKFunction(object):
         where_clause=where) as cursor:
 
         for row in cursor:
-          messages.addMessage("Total_Length: {0} OriginID: {1} DestinationID: {2}".format(
-            row[0], row[1], row[2]))
+          messages.addMessage("Total_Length: {0} OriginID: {1} DestinationID: {2}"
+            .format(row[0], row[1], row[2]))
 
           # Keep track of the total number of points in the current distance band.
           distCount[i]["count"] += 1
@@ -276,4 +256,13 @@ class NetworkKFunction(object):
 
     # Delete the temporary network length storage.
     arcpy.Delete_management(lenTblFullPath)
+
+    # Find the total number of crashes.
+    numPoints = 0
+    with arcpy.da.SearchCursor(in_table=points, field_names=["OID@"]) as cursor:
+      for row in cursor:
+        numPoints += 1
+
+    messages.addMessage("Total number of points: {0}".format(numPoints))
+
     return
