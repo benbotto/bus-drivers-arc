@@ -5,29 +5,29 @@
 
 
 class ComputeObservedKFunction:
-    def __init__(self, nL, nOC):
-        self._networkLength = nL
-        self._numberOfCrashes = nOC
-        self._density = self.calculateDensityObserved(self._networkLength, self._numberOfCrashes)
-        self._data = []
-        self._observedKFunctionIncremental = []
-        self._observedKFunctionDensityIncrementalDistances = []
-        self._observedKFunctionCumulative = []
-        self.observedKFunctionDensityCumulative = []
+  def __init__(self, nL, nOC):
+    self._networkLength = nL
+    self._numberOfCrashes = nOC
+    self._density = self.calculateDensityObserved(self._networkLength, self._numberOfCrashes)
+    self._data = []
+    self._observedKFunctionIncremental = []
+    self._observedKFunctionDensityIncrementalDistances = []
+    self._observedKFunctionCumulative = []
+    self.observedKFunctionDensityCumulative = []
 
-    def calculateDensityObserved(self, networkLength, numberOfCrashes):
-        numberOfCrashesOneDown = numberOfCrashes - 1
-        crashFraction = numberOfCrashesOneDown * numberOfCrashes
-        density = (networkLength / crashFraction)
-        return density
-    
-    def cumulateSingleIteration(self, lastCumulativeObserved, observedThisIteration):
-        observedCumulativeOneIteration = lastCumulativeObserved + observedThisIteration
-        return observedCumulativeOneIteration    
-           
-    def observedKFunctionDensityIncrementalSingleIteration(self, observedKFunctionIncrementalDistance, densityObserved):
-        observedKFunctionDensity = observedKFunctionIncrementalDistance * densityObserved
-        return observedKFunctionDensity
+  def calculateDensityObserved(self, networkLength, numberOfCrashes):
+    numberOfCrashesOneDown = numberOfCrashes - 1
+    crashFraction = numberOfCrashesOneDown * numberOfCrashes
+    density = (networkLength / crashFraction)
+    return density
+  
+  def cumulateSingleIteration(self, lastCumulativeObserved, observedThisIteration):
+    observedCumulativeOneIteration = lastCumulativeObserved + observedThisIteration
+    return observedCumulativeOneIteration  
+       
+  def observedKFunctionDensityIncrementalSingleIteration(self, observedKFunctionIncrementalDistance, densityObserved):
+    observedKFunctionDensity = observedKFunctionIncrementalDistance * densityObserved
+    return observedKFunctionDensity
 
 hello = ComputeObservedKFunction(1178996.0, 699.0)
 networkLength = 1178996.0
