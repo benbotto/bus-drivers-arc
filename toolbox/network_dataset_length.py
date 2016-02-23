@@ -29,7 +29,7 @@ class NetworkDatasetLength(object):
       displayName="Output Network Dataset Length Projected Coordinate System",
       name="out_coordinate_system",
       datatype="GPSpatialReference",
-      parameterType="Required",
+      parameterType="Optional",
       direction="Input")
 
     # Third parameter: output location.
@@ -71,7 +71,7 @@ class NetworkDatasetLength(object):
       if outCoordSys is None:
         # If the network dataset's coordinate system is a projected one,
         # use its coordinate system as the defualt.
-        if ndDesc.spatialReference.projectionName != "":
+        if ndDesc.spatialReference.projectionName != "" and ndDesc.spatialReference.factoryCode != 0:
           parameters[1].value = ndDesc.spatialReference.factoryCode
 
       if outTable is None:
@@ -102,6 +102,14 @@ class NetworkDatasetLength(object):
     outPath        = parameters[2].value
     outTable       = parameters[3].value
     wsPath         = arcpy.env.workspace
+    ndDesc         = arcpy.Describe(networkDataset)
+
+    # The output coordinate system is optional.  Note: this is set as a default
+    # in the updateParameters method, but it only works for standard spatial
+    # references (those having a factory code).  If a custom projection (.prj
+    # file) is used for the network dataset, this sets the output default.
+    if outCoordSys is None:
+      outCoordSys = ndDesc.spatialReference
 
     messages.addMessage("Network dataset: {0}".format(networkDataset))
     messages.addMessage("Network dataset length projected coordinate system: {0}".format(outCoordSys.name))
@@ -109,7 +117,6 @@ class NetworkDatasetLength(object):
     messages.addMessage("Network dataset length table name: {0}".format(outTable))
 
     # The length of the network is needed.  Get the edge source(s).
-    ndDesc        = arcpy.Describe(networkDataset)
     edgeSources   = ndDesc.edgeSources
     networkLength = 0
 

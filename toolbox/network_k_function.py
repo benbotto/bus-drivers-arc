@@ -142,10 +142,7 @@ class NetworkKFunction(object):
     pointsDesc     = arcpy.Describe(points)
     ndDesc         = arcpy.Describe(networkDataset)
 
-    # The output coordinate system is optional.  Note: this is set as a default
-    # in the updateParameters method, but it only works for standard spatial
-    # references (those having a factory code).  If a custom projection (.prj
-    # file) is used for the network dataset, this sets the output default.
+    # Refer to the note in the NetworkDatasetLength tool.
     if outCoordSys is None:
       outCoordSys = ndDesc.spatialReference
 
