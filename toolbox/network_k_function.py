@@ -24,8 +24,8 @@ class NetworkKFunction(object):
   def getParameterInfo(self):
     # First parameter: input origin features.
     points = arcpy.Parameter(
-      displayName="Input Origin Feature Dataset",
-      name="origin_points",
+      displayName="Input Points Feature Dataset",
+      name="points",
       datatype="Feature Class",
       parameterType="Required",
       direction="Input")
@@ -33,7 +33,7 @@ class NetworkKFunction(object):
 
     # Second parameter: network dataset.
     networkDataset = arcpy.Parameter(
-      displayName="Existing Network Dataset",
+      displayName="Input Network Dataset",
       name = "network_dataset",
       datatype="Network Dataset Layer",
       parameterType="Required",
@@ -79,7 +79,7 @@ class NetworkKFunction(object):
       displayName="Output Network Dataset Length Projected Coordinate System",
       name="coordinate_system",
       datatype="GPSpatialReference",
-      parameterType="Required",
+      parameterType="Optional",
       direction="Input")
    
     params = [points, networkDataset, numBands, begDist, distInc, snapDist, outCoordSys]
@@ -104,7 +104,9 @@ class NetworkKFunction(object):
       ndDesc = arcpy.Describe(networkDataset)
       # If the network dataset's coordinate system is a projected one,
       # use its coordinate system as the defualt.
-      if ndDesc.spatialReference.projectionName != "" and ndDesc.spatialReference.linearUnitName == "Meter":
+      if (ndDesc.spatialReference.projectionName != "" and
+        ndDesc.spatialReference.linearUnitName == "Meter" and
+        ndDesc.spatialReference.factoryCode != 0):
         parameters[6].value = ndDesc.spatialReference.factoryCode
 
     return
@@ -139,6 +141,13 @@ class NetworkKFunction(object):
     wsPath         = arcpy.env.workspace
     pointsDesc     = arcpy.Describe(points)
     ndDesc         = arcpy.Describe(networkDataset)
+
+    # The output coordinate system is optional.  Note: this is set as a default
+    # in the updateParameters method, but it only works for standard spatial
+    # references (those having a factory code).  If a custom projection (.prj
+    # file) is used for the network dataset, this sets the output default.
+    if outCoordSys is None:
+      outCoordSys = ndDesc.spatialReference
 
     messages.addMessage("Origin points: {0}".format(points))
     messages.addMessage("Network dataset: {0}".format(networkDataset))
