@@ -82,10 +82,9 @@ class NetworkKCalculation:
     numBands  = self.getnumberOfDistanceBands()
 
     distBands.append({"distanceBand": curDist, "count": 0})
+    distBand = distBands[-1]
 
     for odDist in self.getDistances():
-      distBand = distBands[-1]
-
       if odDist["Total_Length"] <= curDist:
         distBand["count"] += 1
       else:
@@ -98,7 +97,12 @@ class NetworkKCalculation:
           break
         else:
           # Move to the next distance band.  The count for each band is cumulative.
-          distBands.append({"distanceBand": curDist, "count": distBand["count"] + 1})
+          distBands.append({"distanceBand": curDist, "count": distBand["count"]})
+          distBand = distBands[-1]
+
+          # The current point may be in the new distance band.
+          if odDist["Total_Length"] <= curDist:
+            distBand["count"] += 1
 
     return distBands
 
