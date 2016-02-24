@@ -73,9 +73,7 @@ class NetworkKCalculationSuite(unittest.TestCase):
     self.assertEqual(nkc.getDistanceBands()[2]["distanceBand"], 1)
 
     # The count on each distance band.
-    print(nkc.getDistances())
-    print(nkc.getDistanceBands())
     self.assertEqual(nkc.getDistanceBands()[0]["count"], 2)
     self.assertEqual(nkc.getDistanceBands()[1]["count"], 2)
-    #self.assertEqual(nkc.getDistanceBands()[2]["count"], 2)
+    self.assertEqual(nkc.getDistanceBands()[2]["count"], 2)
 
