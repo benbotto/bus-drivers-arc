@@ -115,17 +115,12 @@ class NetworkDatasetRandomPoints(object):
 
         with arcpy.da.SearchCursor(edgePath, ["SHAPE@"]) as cursor:
           for row in cursor:
-            startpt = row[0].firstPoint
-            endpt   = row[0].lastPoint
-
-            messages.addMessage("Point: ({0:.0f}, {1:.0f}) - ({2:.0f}, {3:.0f})"
-              .format(startpt.X, startpt.Y, endpt.X, endpt.Y))
             insCursor.insertRow([row[0]])
 
     # Combine all the line segments into a single line.
     singleLineName     = "TEMP_SINGLE_LINE_{0}".format(ndDesc.name)
     singleLineFullPath = os.path.join(wsPath, singleLineName)
-    arcpy.UnsplitLine_management(lineClassFullPath, singleLineFullPath)
+    arcpy.Dissolve_management(lineClassFullPath, singleLineFullPath)
 
     # Create a series of random points on the new line class.
     messages.addMessage("Creating point feature class.  Name: {0} Path: {1}"
