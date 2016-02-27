@@ -26,7 +26,7 @@ class NetworkDatasetRandomPoints(object):
 
     # Second parameter: output location.
     outLocation = arcpy.Parameter(
-      displayName="Location to Output Random Point Feature Class",
+      displayName="Path to Output Random Point Feature Class",
       name="out_location",
       datatype="DEWorkspace",
       parameterType="Required",
