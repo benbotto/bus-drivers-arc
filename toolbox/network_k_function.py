@@ -74,7 +74,24 @@ class NetworkKFunction(object):
       direction="Input")
     snapDist.value = 25
 
-    # Seventh parameter: projected coordinate system.
+    # Seventh parameter: output location.
+    outNetKLoc = arcpy.Parameter(
+      displayName="Path to Output Network-K Feature Class",
+      name="out_location",
+      datatype="DEWorkspace",
+      parameterType="Required",
+      direction="Input")
+    outNetKLoc.value = arcpy.env.workspace
+
+    # Eigth paramter: the random point feature class to create.
+    outNetKFCName = arcpy.Parameter(
+      displayName="Output Network-K Feature Class Name",
+      name = "output_point_feature_class",
+      datatype="GPString",
+      parameterType="Required",
+      direction="Output")
+
+    # Ninth parameter: projected coordinate system.
     outCoordSys = arcpy.Parameter(
       displayName="Output Network Dataset Length Projected Coordinate System",
       name="coordinate_system",
@@ -82,7 +99,7 @@ class NetworkKFunction(object):
       parameterType="Optional",
       direction="Input")
    
-    params = [points, networkDataset, numBands, begDist, distInc, snapDist, outCoordSys]
+    params = [points, networkDataset, numBands, begDist, distInc, snapDist, outNetKLoc, outNetKFCName, outCoordSys]
     return params
 
   ###
@@ -97,7 +114,7 @@ class NetworkKFunction(object):
   ###
   def updateParameters(self, parameters):
     networkDataset = parameters[1].value
-    outCoordSys    = parameters[6].value
+    outCoordSys    = parameters[8].value
 
     # Default the coordinate system.
     if networkDataset is not None and outCoordSys is None:
@@ -107,7 +124,7 @@ class NetworkKFunction(object):
       if (ndDesc.spatialReference.projectionName != "" and
         ndDesc.spatialReference.linearUnitName == "Meter" and
         ndDesc.spatialReference.factoryCode != 0):
-        parameters[6].value = ndDesc.spatialReference.factoryCode
+        parameters[8].value = ndDesc.spatialReference.factoryCode
 
     return
 
@@ -115,15 +132,15 @@ class NetworkKFunction(object):
   # If any fields are invalid, show an appropriate error message.
   ###
   def updateMessages(self, parameters):
-    outCoordSys = parameters[6].value
+    outCoordSys = parameters[8].value
 
     if outCoordSys is not None:
       if outCoordSys.projectionName == "":
-        parameters[6].setErrorMessage("Output coordinate system must be a projected coordinate system.")
+        parameters[8].setErrorMessage("Output coordinate system must be a projected coordinate system.")
       elif outCoordSys.linearUnitName != "Meter":
-        parameters[6].setErrorMessage("Output coordinate system must have a linear unit code of 'Meter.'")
+        parameters[8].setErrorMessage("Output coordinate system must have a linear unit code of 'Meter.'")
       else:
-        parameters[6].clearMessage()
+        parameters[8].clearMessage()
     return
 
   ###
@@ -136,7 +153,9 @@ class NetworkKFunction(object):
     begDist        = parameters[3].value
     distInc        = parameters[4].value
     snapDist       = parameters[5].value
-    outCoordSys    = parameters[6].value
+    outNetKLoc     = parameters[6].valueAsText
+    outNetKFCName  = parameters[7].valueAsText
+    outCoordSys    = parameters[8].value
     
     wsPath         = arcpy.env.workspace
     pointsDesc     = arcpy.Describe(points)
@@ -152,6 +171,8 @@ class NetworkKFunction(object):
     messages.addMessage("Beginning distance: {0}".format(begDist))
     messages.addMessage("Distance increment: {0}".format(distInc))
     messages.addMessage("Snap distance: {0}".format(snapDist))
+    messages.addMessage("Path to output network-K feature class: {0}".format(outNetKLoc))
+    messages.addMessage("Output network-K feature class name: {0}".format(outNetKFCName))
     messages.addMessage("Network dataset length projected coordinate system: {0}".format(outCoordSys.name))
 
     # This is the current map, which should be an OSM base map.
@@ -244,5 +265,17 @@ class NetworkKFunction(object):
     messages.addMessage("Number of points: {0}".format(netKCalc.getNumberOfPoints()))
     messages.addMessage("Density: {0}".format(netKCalc.getPointNetworkDensity()))
     messages.addMessage("Distance bands: {0}".format(netKCalc.getDistanceBands()))
+
+    # Write the distance bands to a table.
+    outNetKFCFullPath = os.path.join(outNetKLoc, outNetKFCName)
+    arcpy.CreateTable_management(outNetKLoc, outNetKFCName)
+
+    arcpy.AddField_management(outNetKFCFullPath, "Distance_Band", "DOUBLE")
+    arcpy.AddField_management(outNetKFCFullPath, "Point_Count",   "DOUBLE")
+    arcpy.AddField_management(outNetKFCFullPath, "K_Function",    "DOUBLE")
+
+    with arcpy.da.InsertCursor(outNetKFCFullPath, ["Distance_Band", "Point_Count", "K_Function"]) as cursor:
+      for distBand in netKCalc.getDistanceBands():
+        cursor.insertRow([distBand["distanceBand"], distBand["count"], distBand["KFunction"]])
 
     return
