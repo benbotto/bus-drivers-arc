@@ -1,6 +1,7 @@
 import arcpy
 import os
 import network_k_calculation
+from collections import OrderedDict
 
 network_k_calculation = reload(network_k_calculation)
 
@@ -12,11 +13,16 @@ class NetworkKFunction(object):
   # Initialize the tool.
   ###
   def __init__(self):
-    self.label = "Network K Function"
-    self.description = "Uses a Network K Function to analyze clustering and dispersion trends in a set of crash points."
+    self.label              = "Network K Function"
+    self.description        = "Uses a Network K Function to analyze clustering and dispersion trends in a set of crash points."
     self.canRunInBackground = False
+    env.overwriteOutput     = True
 
-    env.overwriteOutput = True
+    self.confidenceEnvelopes = OrderedDict([
+      ("0 Permutations (No Confidence Envelope)", 0),
+      ("9 Permutations", 9),
+      ("99 Permutations", 99),
+      ("999 Permutations", 999)])
   
   ###
   # Get input from the users.
@@ -83,7 +89,7 @@ class NetworkKFunction(object):
       direction="Input")
     outNetKLoc.value = arcpy.env.workspace
 
-    # Eigth paramter: the random point feature class to create.
+    # Eigth parameter: the random point feature class to create.
     outNetKFCName = arcpy.Parameter(
       displayName="Output Network-K Feature Class Name",
       name = "output_point_feature_class",
@@ -91,7 +97,18 @@ class NetworkKFunction(object):
       parameterType="Required",
       direction="Output")
 
-    # Ninth parameter: projected coordinate system.
+    # Ninth parameter: confidence envelope (number of permutations).
+    confidenceEnv = arcpy.Parameter(
+      displayName="Compute Confidence Envelope",
+      name = "confidence_envelope",
+      datatype="GPString",
+      parameterType="Required",
+      direction="Input")
+    confKeys                  = self.confidenceEnvelopes.keys();
+    confidenceEnv.filter.list = confKeys
+    confidenceEnv.value       = confKeys[0]
+
+    # Tenth parameter: projected coordinate system.
     outCoordSys = arcpy.Parameter(
       displayName="Output Network Dataset Length Projected Coordinate System",
       name="coordinate_system",
@@ -99,8 +116,8 @@ class NetworkKFunction(object):
       parameterType="Optional",
       direction="Input")
    
-    params = [points, networkDataset, numBands, begDist, distInc, snapDist, outNetKLoc, outNetKFCName, outCoordSys]
-    return params
+    return [points, networkDataset, numBands, begDist, distInc, snapDist,
+      outNetKLoc, outNetKFCName, confidenceEnv, outCoordSys]
 
   ###
   # Check if the tool is available for use.
@@ -114,7 +131,7 @@ class NetworkKFunction(object):
   ###
   def updateParameters(self, parameters):
     networkDataset = parameters[1].value
-    outCoordSys    = parameters[8].value
+    outCoordSys    = parameters[9].value
 
     # Default the coordinate system.
     if networkDataset is not None and outCoordSys is None:
@@ -124,7 +141,7 @@ class NetworkKFunction(object):
       if (ndDesc.spatialReference.projectionName != "" and
         ndDesc.spatialReference.linearUnitName == "Meter" and
         ndDesc.spatialReference.factoryCode != 0):
-        parameters[8].value = ndDesc.spatialReference.factoryCode
+        parameters[9].value = ndDesc.spatialReference.factoryCode
 
     return
 
@@ -132,15 +149,15 @@ class NetworkKFunction(object):
   # If any fields are invalid, show an appropriate error message.
   ###
   def updateMessages(self, parameters):
-    outCoordSys = parameters[8].value
+    outCoordSys = parameters[9].value
 
     if outCoordSys is not None:
       if outCoordSys.projectionName == "":
-        parameters[8].setErrorMessage("Output coordinate system must be a projected coordinate system.")
+        parameters[9].setErrorMessage("Output coordinate system must be a projected coordinate system.")
       elif outCoordSys.linearUnitName != "Meter":
-        parameters[8].setErrorMessage("Output coordinate system must have a linear unit code of 'Meter.'")
+        parameters[9].setErrorMessage("Output coordinate system must have a linear unit code of 'Meter.'")
       else:
-        parameters[8].clearMessage()
+        parameters[9].clearMessage()
     return
 
   ###
@@ -155,7 +172,9 @@ class NetworkKFunction(object):
     snapDist       = parameters[5].value
     outNetKLoc     = parameters[6].valueAsText
     outNetKFCName  = parameters[7].valueAsText
-    outCoordSys    = parameters[8].value
+    confEnvName    = parameters[8].valueAsText
+    confEnvNum     = self.confidenceEnvelopes[confEnvName]
+    outCoordSys    = parameters[9].value
     
     wsPath         = arcpy.env.workspace
     pointsDesc     = arcpy.Describe(points)
@@ -173,6 +192,7 @@ class NetworkKFunction(object):
     messages.addMessage("Snap distance: {0}".format(snapDist))
     messages.addMessage("Path to output network-K feature class: {0}".format(outNetKLoc))
     messages.addMessage("Output network-K feature class name: {0}".format(outNetKFCName))
+    messages.addMessage("Compute confidence envelope name: {0} number: {1}".format(confEnvName, confEnvNum))
     messages.addMessage("Network dataset length projected coordinate system: {0}".format(outCoordSys.name))
 
     # This is the current map, which should be an OSM base map.

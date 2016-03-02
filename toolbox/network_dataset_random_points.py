@@ -41,6 +41,7 @@ class NetworkDatasetRandomPoints(object):
       parameterType="Required",
       direction="Output")
 
+    # Fourth parameter: number of random points to generate.
     numPoints = arcpy.Parameter(
       displayName="Number of Points",
       name = "num_points",
