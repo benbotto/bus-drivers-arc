@@ -1,12 +1,17 @@
 import arcpy
 import os
 import network_k_calculation
+import odcm_distance_calculation
+
 from collections import OrderedDict
+from arcpy       import env
 
-network_k_calculation = reload(network_k_calculation)
+# ArcMap caching prevention.
+network_k_calculation     = reload(network_k_calculation)
+odcm_distance_calculation = reload(odcm_distance_calculation)
 
-from network_k_calculation import NetworkKCalculation
-from arcpy import env
+from network_k_calculation     import NetworkKCalculation
+from odcm_distance_calculation import ODCMDistanceCalculation
 
 class NetworkKFunction(object):
   ###
@@ -195,57 +200,11 @@ class NetworkKFunction(object):
     messages.addMessage("Compute confidence envelope name: {0} number: {1}".format(confEnvName, confEnvNum))
     messages.addMessage("Network dataset length projected coordinate system: {0}".format(outCoordSys.name))
 
-    # This is the current map, which should be an OSM base map.
-    curMapDoc = arcpy.mapping.MapDocument("CURRENT")
-
-    # Get the data from from the map (see the DataFrame object of arcpy).
-    dataFrame = arcpy.mapping.ListDataFrames(curMapDoc, "Layers")[0]
-
-    # The name of the ODCM layer.
-    odcmName = "ODCM__{0}__{1}__{2}__{3}".format(
+    # Make the ODCM and calculate the distance between each set of points.
+    odcmDistCalc = ODCMDistanceCalculation()
+    odcmName     = odcmName = "ODCM__{0}__{1}__{2}__{3}".format(
       pointsDesc.baseName, ndDesc.baseName, begDist, distInc)
-
-    # Create the cost matrix.
-    costMatResult = arcpy.na.MakeODCostMatrixLayer(networkDataset, odcmName, "Length")
-    odcmLayer     = costMatResult.getOutput(0)
-
-    # The OD Cost Matrix layer will have Origins and Destinations layers.  Get
-    # a reference to each of these.
-    odcmSublayers   = arcpy.na.GetNAClassNames(odcmLayer)
-    odcmOriginLayer = odcmSublayers["Origins"]
-    odcmDestLayer   = odcmSublayers["Destinations"]
-
-    # Add the origins and destinations to the ODCM.
-    arcpy.na.AddLocations(odcmLayer, odcmOriginLayer, points, "", snapDist)
-    arcpy.na.AddLocations(odcmLayer, odcmDestLayer,   points, "", snapDist)
-
-    # Solve the matrix.
-    arcpy.na.Solve(odcmLayer)
-
-    # Show ODCM layer to the user.
-    arcpy.mapping.AddLayer(dataFrame, odcmLayer, "TOP")
-    arcpy.RefreshTOC()
-
-    # Get the "Lines" layer, which has the distance between each point.
-    #messages.addMessage("Sublayers {0}".format(odcmSublayers))
-    odcmLines = odcmSublayers["ODLines"]
-
-    # This array will hold all the OD distances.
-    odDists = []
-
-    # Get all the data from the distance data from the ODCM where the
-    # origin and destination are not the same.
-    where = """{0} <> {1}""".format(
-      arcpy.AddFieldDelimiters(odcmLines, "originID"),
-      arcpy.AddFieldDelimiters(odcmLines, "destinationID"))
-
-    with arcpy.da.SearchCursor(
-      in_table=odcmLines,
-      field_names=["Total_Length", "originID", "destinationID"],
-      where_clause=where) as cursor:
-
-      for row in cursor:
-        odDists.append({"Total_Length": row[0], "OriginID": row[1], "DestinationID": row[2]})
+    odDists = odcmDistCalc.calculateDistances(odcmName, networkDataset, points, snapDist)
 
     messages.addMessage("****************************************************")
     messages.addMessage("ODCM Distances: {0}".format(odDists))
