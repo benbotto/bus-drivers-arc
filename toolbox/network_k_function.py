@@ -2,16 +2,19 @@ import arcpy
 import os
 import network_k_calculation
 import odcm_distance_calculation
+import network_length_calculation
 
 from collections import OrderedDict
 from arcpy       import env
 
 # ArcMap caching prevention.
-network_k_calculation     = reload(network_k_calculation)
-odcm_distance_calculation = reload(odcm_distance_calculation)
+network_k_calculation      = reload(network_k_calculation)
+odcm_distance_calculation  = reload(odcm_distance_calculation)
+network_length_calculation = reload(network_length_calculation)
 
-from network_k_calculation     import NetworkKCalculation
-from odcm_distance_calculation import ODCMDistanceCalculation
+from network_k_calculation      import NetworkKCalculation
+from odcm_distance_calculation  import ODCMDistanceCalculation
+from network_length_calculation import NetworkLengthCalculation
 
 class NetworkKFunction(object):
   ###
@@ -180,8 +183,6 @@ class NetworkKFunction(object):
     confEnvName    = parameters[8].valueAsText
     confEnvNum     = self.confidenceEnvelopes[confEnvName]
     outCoordSys    = parameters[9].value
-    
-    wsPath         = arcpy.env.workspace
     pointsDesc     = arcpy.Describe(points)
     ndDesc         = arcpy.Describe(networkDataset)
 
@@ -205,45 +206,22 @@ class NetworkKFunction(object):
     odcmName     = odcmName = "ODCM__{0}__{1}__{2}__{3}".format(
       pointsDesc.baseName, ndDesc.baseName, begDist, distInc)
     odDists = odcmDistCalc.calculateDistances(odcmName, networkDataset, points, snapDist)
-
     messages.addMessage("****************************************************")
     messages.addMessage("ODCM Distances: {0}".format(odDists))
     messages.addMessage("****************************************************")
 
-    # The Network Dataset Length tool is used to find the length of the
-    # network.  Import that tool's toolbox; it's is in the Crash
-    # Analysis Toolbox (this tool's toolbox).
-    toolboxPath     = os.path.dirname(os.path.abspath(__file__))
-    toolboxName     = "Crash Analysis Toolbox.pyt"
-    toolboxFullPath = os.path.join(toolboxPath, toolboxName)
-    messages.addMessage("Importing toolbox: {0}".format(toolboxFullPath))
-    arcpy.ImportToolbox(toolboxFullPath)
-
-    # The length will get stored in a temporary table.
-    lenTblName     = "TEMP_LENGTH_{0}".format(ndDesc.baseName)
-    lenTblFullPath = os.path.join(wsPath, lenTblName)
-    messages.addMessage("Storing length in: {0}".format(lenTblFullPath))
-    arcpy.NetworkDatasetLength_crashAnalysis(networkDataset, outCoordSys, wsPath, lenTblName)
-
-    # Pull the length from the temporary length table.
-    networkLength = 0
-    with arcpy.da.SearchCursor(in_table=lenTblFullPath, field_names=["Network_Dataset_Length"]) as cursor:
-      for row in cursor:
-        networkLength += row[0]
-
+    # Calculate the length of the network.
+    netLenCalc    = NetworkLengthCalculation()
+    networkLength = netLenCalc.calculateLength(networkDataset, outCoordSys)
     messages.addMessage("****************************************************")
     messages.addMessage("Total network length: {0}".format(networkLength))
     messages.addMessage("****************************************************")
 
-    # Delete the temporary network length storage.
-    arcpy.Delete_management(lenTblFullPath)
-
-    # Do the actual calculation.
+    # Do the actual network k-function calculation.
     netKCalc = NetworkKCalculation(networkLength, odDists, begDist, distInc, numBands)
-    messages.addMessage("Sorted: {0}".format(netKCalc.getDistances()))
-    messages.addMessage("Number of points: {0}".format(netKCalc.getNumberOfPoints()))
-    messages.addMessage("Density: {0}".format(netKCalc.getPointNetworkDensity()))
+    messages.addMessage("****************************************************")
     messages.addMessage("Distance bands: {0}".format(netKCalc.getDistanceBands()))
+    messages.addMessage("****************************************************")
 
     # Write the distance bands to a table.
     outNetKFCFullPath = os.path.join(outNetKLoc, outNetKFCName)
@@ -256,5 +234,3 @@ class NetworkKFunction(object):
     with arcpy.da.InsertCursor(outNetKFCFullPath, ["Distance_Band", "Point_Count", "K_Function"]) as cursor:
       for distBand in netKCalc.getDistanceBands():
         cursor.insertRow([distBand["distanceBand"], distBand["count"], distBand["KFunction"]])
-
-    return
