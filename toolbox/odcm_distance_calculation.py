@@ -8,13 +8,12 @@ import arcpy
 class ODCMDistanceCalculation:
   ###
   # Calculate the distances.
-  # @param odcmName The name of the ODCM to be generated.
   # @param networkDataset A network dataset which the points are on.
   # @param points The points to calculate distances between.
   # @param snapDist If a point is not directly on the network, it will be
   #        snapped to the nearset line if it is within this threshold.
   ###
-  def calculateDistances(self, odcmName, networkDataset, points, snapDist):
+  def calculateDistances(self, networkDataset, points, snapDist):
     # This is the current map, which should be an OSM base map.
     curMapDoc = arcpy.mapping.MapDocument("CURRENT")
 
@@ -22,7 +21,7 @@ class ODCMDistanceCalculation:
     dataFrame = arcpy.mapping.ListDataFrames(curMapDoc, "Layers")[0]
 
     # Create the cost matrix.
-    costMatResult = arcpy.na.MakeODCostMatrixLayer(networkDataset, odcmName, "Length")
+    costMatResult = arcpy.na.MakeODCostMatrixLayer(networkDataset, "TEMP_ODCM_NETWORK_K", "Length")
     odcmLayer     = costMatResult.getOutput(0)
 
     # The OD Cost Matrix layer will have Origins and Destinations layers.  Get
@@ -38,13 +37,12 @@ class ODCMDistanceCalculation:
     # Solve the matrix.
     arcpy.na.Solve(odcmLayer)
 
-    # Show ODCM layer to the user.
-    arcpy.mapping.AddLayer(dataFrame, odcmLayer, "TOP")
-    arcpy.RefreshTOC()
+    # Show the ODCM layer (it must be showing to open th ODLines sub layer below).
+    #arcpy.mapping.AddLayer(dataFrame, odcmLayer, "TOP")
+    #arcpy.RefreshTOC()
 
     # Get the "Lines" layer, which has the distance between each point.
-    #messages.addMessage("Sublayers {0}".format(odcmSublayers))
-    odcmLines = odcmSublayers["ODLines"]
+    odcmLines = arcpy.mapping.ListLayers(odcmLayer, odcmSublayers["ODLines"])[0]
 
     # This array will hold all the OD distances.
     odDists = []

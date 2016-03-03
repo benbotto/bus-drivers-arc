@@ -203,25 +203,17 @@ class NetworkKFunction(object):
 
     # Make the ODCM and calculate the distance between each set of points.
     odcmDistCalc = ODCMDistanceCalculation()
-    odcmName     = odcmName = "ODCM__{0}__{1}__{2}__{3}".format(
-      pointsDesc.baseName, ndDesc.baseName, begDist, distInc)
-    odDists = odcmDistCalc.calculateDistances(odcmName, networkDataset, points, snapDist)
-    messages.addMessage("****************************************************")
+    odDists      = odcmDistCalc.calculateDistances(networkDataset, points, snapDist)
     messages.addMessage("ODCM Distances: {0}".format(odDists))
-    messages.addMessage("****************************************************")
 
     # Calculate the length of the network.
     netLenCalc    = NetworkLengthCalculation()
     networkLength = netLenCalc.calculateLength(networkDataset, outCoordSys)
-    messages.addMessage("****************************************************")
     messages.addMessage("Total network length: {0}".format(networkLength))
-    messages.addMessage("****************************************************")
 
     # Do the actual network k-function calculation.
     netKCalc = NetworkKCalculation(networkLength, odDists, begDist, distInc, numBands)
-    messages.addMessage("****************************************************")
     messages.addMessage("Distance bands: {0}".format(netKCalc.getDistanceBands()))
-    messages.addMessage("****************************************************")
 
     # Write the distance bands to a table.
     outNetKFCFullPath = os.path.join(outNetKLoc, outNetKFCName)
