@@ -3,12 +3,14 @@
 #Compute Observed K Function
 #Look at excel file K_IH_CMC+Observed_Distances3_FINAL for where calculations are derived
 
+import math
+
 class NetworkKCalculation:
   ###
   # Initialize the calculator.
   # @param netLen The length of the network.
-  # @param odDists An array of origins and destinations from an OD Cost
-  #        Matrix.  Each should have keys Total_Length, OriginID, DestinationID.
+  # @param odDists An array of origins and destinations from an OD cost
+  #        matrix.  Each should have keys Total_Length, OriginID, DestinationID.
   # @param begDist The distance to begin calculating (the first distance band).
   # @param distInc The amount to increment each distance band.
   # @param numBands The number of distance bands (optional).
@@ -19,6 +21,13 @@ class NetworkKCalculation:
     self._begDist  = begDist
     self._distInc  = distInc
     self._numBands = numBands
+
+    # If the user doesn't specify the number of distance bands then calculate it.
+    maxLen   = self._odDists[-1]["Total_Length"]
+    maxBands = math.ceil((maxLen - self._begDist) / self._distInc + 1)
+
+    if self._numBands is None or self._numBands > maxBands:
+      self._numBands = maxBands
 
     # Calculate the total number of points.
     self._numPoints = self.countNumberOfPoints()
