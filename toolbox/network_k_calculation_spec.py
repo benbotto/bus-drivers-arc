@@ -29,7 +29,8 @@ class NetworkKCalculationSuite(unittest.TestCase):
 
     self.assertEqual(nkc.getBeginningDistance(), 1)
     self.assertEqual(nkc.getDistanceIncrement(), 1)
-    self.assertEqual(nkc.getnumberOfDistanceBands(), 3)
+    self.assertEqual(nkc.getNumberOfDistanceBands(), 3)
+    self.assertEqual(len(nkc.getDistanceBands()), nkc.getNumberOfDistanceBands())
     self.assertEqual(nkc.getPointNetworkDensity(), 14 / (3 * 2))
 
     # Each distance band length.
@@ -64,10 +65,10 @@ class NetworkKCalculationSuite(unittest.TestCase):
     nkc = NetworkKCalculation(netLen, odDists, begDist, distInc, numBands)
     self.assertEqual(nkc.getBeginningDistance(), 0)
     self.assertEqual(nkc.getDistanceIncrement(), .5)
-    self.assertEqual(nkc.getnumberOfDistanceBands(), 3)
+    self.assertEqual(nkc.getNumberOfDistanceBands(), 3)
+    self.assertEqual(len(nkc.getDistanceBands()), nkc.getNumberOfDistanceBands())
 
     # Each distance band length.
-    self.assertEqual(len(nkc.getDistanceBands()), 3)
     self.assertEqual(nkc.getDistanceBands()[0]["distanceBand"], 0)
     self.assertEqual(nkc.getDistanceBands()[1]["distanceBand"], .5)
     self.assertEqual(nkc.getDistanceBands()[2]["distanceBand"], 1)
@@ -87,7 +88,7 @@ class NetworkKCalculationSuite(unittest.TestCase):
       {'Total_Length': 4, 'DestinationID': 2, 'OriginID': 1}]
 
     nkc = NetworkKCalculation(netLen, odDists, begDist, distInc, None)
-    self.assertEqual(nkc.getnumberOfDistanceBands(), 5) # 0, 1, 2, 3, 4
+    self.assertEqual(nkc.getNumberOfDistanceBands(), 5) # 0, 1, 2, 3, 4
 
     begDist = 2
     distInc = 1
@@ -96,7 +97,7 @@ class NetworkKCalculationSuite(unittest.TestCase):
       {'Total_Length': 4, 'DestinationID': 2, 'OriginID': 1}]
 
     nkc = NetworkKCalculation(netLen, odDists, begDist, distInc, None)
-    self.assertEqual(nkc.getnumberOfDistanceBands(), 3) # 2, 3, 4
+    self.assertEqual(nkc.getNumberOfDistanceBands(), 3) # 2, 3, 4
 
     begDist = 0
     distInc = .75
@@ -105,7 +106,7 @@ class NetworkKCalculationSuite(unittest.TestCase):
       {'Total_Length': 4, 'DestinationID': 2, 'OriginID': 1}]
 
     nkc = NetworkKCalculation(netLen, odDists, begDist, distInc, None)
-    self.assertEqual(nkc.getnumberOfDistanceBands(), 7) # 0, .75, 1.5, 2.25, 3, 3.75, 4.5
+    self.assertEqual(nkc.getNumberOfDistanceBands(), 7) # 0, .75, 1.5, 2.25, 3, 3.75, 4.5
 
     begDist = 2
     distInc = .75
@@ -114,7 +115,7 @@ class NetworkKCalculationSuite(unittest.TestCase):
       {'Total_Length': 4, 'DestinationID': 2, 'OriginID': 1}]
 
     nkc = NetworkKCalculation(netLen, odDists, begDist, distInc, None)
-    self.assertEqual(nkc.getnumberOfDistanceBands(), 4) # 2, 2.75, 3.5, 4.25
+    self.assertEqual(nkc.getNumberOfDistanceBands(), 4) # 2, 2.75, 3.5, 4.25
 
     begDist  = 0
     distInc  = .75
@@ -124,14 +125,18 @@ class NetworkKCalculationSuite(unittest.TestCase):
       {'Total_Length': 4, 'DestinationID': 2, 'OriginID': 1}]
 
     nkc = NetworkKCalculation(netLen, odDists, begDist, distInc, numBands)
-    self.assertEqual(nkc.getnumberOfDistanceBands(), 4) # User limited.
+    self.assertEqual(nkc.getNumberOfDistanceBands(), numBands) # User limited.
+    distBands = nkc.getDistanceBands()
+    self.assertEqual(len(distBands), numBands)
 
     begDist  = 0
     distInc  = .75
-    numBands = 19
+    numBands = 10
     odDists  = [
       {'Total_Length': 4, 'DestinationID': 1, 'OriginID': 2},
       {'Total_Length': 4, 'DestinationID': 2, 'OriginID': 1}]
 
     nkc = NetworkKCalculation(netLen, odDists, begDist, distInc, numBands)
-    self.assertEqual(nkc.getnumberOfDistanceBands(), 7) # User limited, but there aren't this many bands.
+    self.assertEqual(nkc.getNumberOfDistanceBands(), numBands) # User limited.  Bands filled.
+    distBands = nkc.getDistanceBands()
+    self.assertEqual(len(distBands), numBands)

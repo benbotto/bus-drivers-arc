@@ -23,11 +23,9 @@ class NetworkKCalculation:
     self._numBands = numBands
 
     # If the user doesn't specify the number of distance bands then calculate it.
-    maxLen   = self._odDists[-1]["Total_Length"]
-    maxBands = math.ceil((maxLen - self._begDist) / self._distInc + 1)
-
-    if self._numBands is None or self._numBands > maxBands:
-      self._numBands = maxBands
+    if self._numBands is None:
+      maxLen         = self._odDists[-1]["Total_Length"]
+      self._numBands = int(math.ceil((maxLen - self._begDist) / self._distInc + 1))
 
     # Calculate the total number of points.
     self._numPoints = self.countNumberOfPoints()
@@ -58,7 +56,7 @@ class NetworkKCalculation:
     return self._distInc
 
   # Get the number of increments, or none.
-  def getnumberOfDistanceBands(self):
+  def getNumberOfDistanceBands(self):
     return self._numBands
 
   # Calculate the number of points in the network.
@@ -87,31 +85,27 @@ class NetworkKCalculation:
   def countDistanceBands(self):
     distBands = []
     curDist   = self.getBeginningDistance()
-    bandNum   = 1
-    numBands  = self.getnumberOfDistanceBands()
+    numBands  = self.getNumberOfDistanceBands()
+    odDists   = self.getDistances()
+    numDists  = len(odDists)
+    distNum   = 0
+    bandCount = 0
+    
+    # Go through all the distance bands.
+    for bandNum in range(0, numBands):
+      # Points are cumulative.
+      distBands.append({"distanceBand": curDist, "count": bandCount})
+      distBand = distBands[-1]
 
-    distBands.append({"distanceBand": curDist, "count": 0})
-    distBand = distBands[-1]
-
-    for odDist in self.getDistances():
-      if odDist["Total_Length"] <= curDist:
+      # Increase the count of points in the current distance band until either
+      # the current distance is exceeded or the last point is reached.  Note
+      # that the distances are ordered by Total_Length.
+      while distNum < numDists and odDists[distNum]["Total_Length"] <= curDist:
         distBand["count"] += 1
-      else:
-        curDist += self.getDistanceIncrement()
-        bandNum += 1
+        bandCount         += 1
+        distNum           += 1
 
-        # The user can optionally set the number of bands.  If the user-requested
-        # number of bands is reached, break out of the loop.
-        if numBands is not None and bandNum > numBands:
-          break
-        else:
-          # Move to the next distance band.  The count for each band is cumulative.
-          distBands.append({"distanceBand": curDist, "count": distBand["count"]})
-          distBand = distBands[-1]
-
-          # The current point may be in the new distance band.
-          if odDist["Total_Length"] <= curDist:
-            distBand["count"] += 1
+      curDist += self.getDistanceIncrement()
 
     return distBands
 
