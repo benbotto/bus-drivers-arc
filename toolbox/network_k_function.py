@@ -3,6 +3,7 @@ import os
 import network_k_calculation
 import odcm_distance_calculation
 import network_length_calculation
+import random_point_generator
 
 from collections import OrderedDict
 from arcpy       import env
@@ -11,10 +12,12 @@ from arcpy       import env
 network_k_calculation      = reload(network_k_calculation)
 odcm_distance_calculation  = reload(odcm_distance_calculation)
 network_length_calculation = reload(network_length_calculation)
+random_point_generator     = reload(random_point_generator)
 
 from network_k_calculation      import NetworkKCalculation
 from odcm_distance_calculation  import ODCMDistanceCalculation
 from network_length_calculation import NetworkLengthCalculation
+from random_point_generator     import RandomPointGenerator
 
 class NetworkKFunction(object):
   ###
@@ -183,7 +186,6 @@ class NetworkKFunction(object):
     confEnvName    = parameters[8].valueAsText
     confEnvNum     = self.confidenceEnvelopes[confEnvName]
     outCoordSys    = parameters[9].value
-    pointsDesc     = arcpy.Describe(points)
     ndDesc         = arcpy.Describe(networkDataset)
 
     # Refer to the note in the NetworkDatasetLength tool.
@@ -201,19 +203,29 @@ class NetworkKFunction(object):
     messages.addMessage("Compute confidence envelope name: {0} number: {1}".format(confEnvName, confEnvNum))
     messages.addMessage("Network dataset length projected coordinate system: {0}".format(outCoordSys.name))
 
-    # Make the ODCM and calculate the distance between each set of points.
-    odcmDistCalc = ODCMDistanceCalculation()
-    odDists      = odcmDistCalc.calculateDistances(networkDataset, points, snapDist)
-    messages.addMessage("ODCM Distances: {0}".format(odDists))
-
     # Calculate the length of the network.
     netLenCalc    = NetworkLengthCalculation()
     networkLength = netLenCalc.calculateLength(networkDataset, outCoordSys)
     messages.addMessage("Total network length: {0}".format(networkLength))
 
-    # Do the actual network k-function calculation.
-    netKCalc = NetworkKCalculation(networkLength, odDists, begDist, distInc, numBands)
-    messages.addMessage("Distance bands: {0}".format(netKCalc.getDistanceBands()))
+    # Observed distance bands.
+    netKCalc  = self.runCalculation(messages, points, networkDataset, numBands, begDist, distInc, snapDist, networkLength)
+    distBands = netKCalc.getDistanceBands()
+    numPoints = netKCalc.getNumberOfPoints()
+    # The number of bands may differ from what the user requested.  For example,
+    # if the user requests a maximum of 50 bands, 1m increment, 0m start, and
+    # the maximum distance is 3m, then there will be 4 bands (0m, 1m, 2m, and 3m).
+    numBands  = netKCalc.getNumberOfDistanceBands()
+
+    # Generate a set of random points on the network.
+    for i in range(1, confEnvNum + 1):
+      messages.addMessage("Iteration {0}".format(i))
+
+      randPointGen = RandomPointGenerator()
+      randPoints   = randPointGen.generateRandomPoints(networkDataset, outCoordSys, numPoints)
+
+      netKCalc  = self.runCalculation(messages, randPoints, networkDataset, numBands, begDist, distInc, snapDist, networkLength)
+      distBands = netKCalc.getDistanceBands()
 
     # Write the distance bands to a table.
     outNetKFCFullPath = os.path.join(outNetKLoc, outNetKFCName)
@@ -224,5 +236,17 @@ class NetworkKFunction(object):
     arcpy.AddField_management(outNetKFCFullPath, "K_Function",    "DOUBLE")
 
     with arcpy.da.InsertCursor(outNetKFCFullPath, ["Distance_Band", "Point_Count", "K_Function"]) as cursor:
-      for distBand in netKCalc.getDistanceBands():
+      for distBand in distBands:
         cursor.insertRow([distBand["distanceBand"], distBand["count"], distBand["KFunction"]])
+
+  def runCalculation(self, messages, points, networkDataset, numBands, begDist, distInc, snapDist, networkLength):
+    # Make the ODCM and calculate the distance between each set of points.
+    odcmDistCalc = ODCMDistanceCalculation()
+    odDists      = odcmDistCalc.calculateDistances(networkDataset, points, snapDist)
+    #messages.addMessage("ODCM Distances: {0}".format(odDists))
+
+    # Do the actual network k-function calculation and return the result.
+    netKCalc = NetworkKCalculation(networkLength, odDists, begDist, distInc, numBands)
+    messages.addMessage("Distance bands: {0}".format(netKCalc.getDistanceBands()))
+    return netKCalc
+
