@@ -1,5 +1,6 @@
 import arcpy
 import os
+import time
 import network_k_calculation
 import network_k_analysis
 
@@ -197,7 +198,7 @@ class NetworkKFunction(object):
     if outCoordSys is None:
       outCoordSys = ndDesc.spatialReference
 
-    messages.addMessage("Origin points: {0}".format(points))
+    messages.addMessage("\nOrigin points: {0}".format(points))
     messages.addMessage("Network dataset: {0}".format(networkDataset))
     messages.addMessage("Number of distance bands: {0}".format(numBands))
     messages.addMessage("Beginning distance: {0}".format(begDist))
@@ -225,8 +226,6 @@ class NetworkKFunction(object):
     netKCalculations = []
 
     # Observed distance bands.
-    messages.addMessage("Iteration 0 (observed).")
-
     # Make the ODCM and calculate the distance between each set of points.
     odDists = self.calculateDistances(networkDataset, points, snapDist)
 
@@ -235,11 +234,11 @@ class NetworkKFunction(object):
     numPoints = netKCalc.getNumberOfPoints()
     numBands  = netKCalc.getNumberOfDistanceBands()
     netKCalculations.append(netKCalc.getDistanceBands())
+    messages.addMessage("Iteration 0 (observed) complete.")
 
     # Generate a set of random points on the network.
+    startTime = time.time()
     for i in range(1, numPerms + 1):
-      messages.addMessage("Iteration {0}.".format(i))
-
       randPoints = self.generateRandomPoints(networkDataset, outCoordSys, numPoints)
       odDists    = self.calculateDistances(networkDataset, randPoints, snapDist)
       netKCalc   = NetworkKCalculation(networkLength, odDists, begDist, distInc, numBands)
@@ -247,6 +246,13 @@ class NetworkKFunction(object):
 
       # Clean up the random points table.
       arcpy.Delete_management(randPoints)
+
+      # Show the progress.
+      timeDelta = time.time() - startTime
+      eta       = timeDelta / i * (numPerms - i)
+      timeDelta = time.strftime("%H:%M:%S", time.gmtime(timeDelta))
+      eta       = time.strftime("%H:%M:%S", time.gmtime(eta))
+      messages.addMessage("Iteration {0} complete.  Elapsed time: {1}s.  ETA: {2}s.".format(i, timeDelta, eta))
 
     # Write the distance bands to a table.  The 0th iteration is the observed
     # data.  Subsequent iterations are the uniform point data.
