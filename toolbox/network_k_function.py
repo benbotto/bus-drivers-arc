@@ -4,6 +4,7 @@ import network_k_calculation
 import odcm_distance_calculation
 import network_length_calculation
 import random_point_generator
+import network_k_analysis
 
 from collections import OrderedDict
 from arcpy       import env
@@ -13,11 +14,13 @@ network_k_calculation      = reload(network_k_calculation)
 odcm_distance_calculation  = reload(odcm_distance_calculation)
 network_length_calculation = reload(network_length_calculation)
 random_point_generator     = reload(random_point_generator)
+network_k_analysis         = reload(network_k_analysis)
 
 from network_k_calculation      import NetworkKCalculation
 from odcm_distance_calculation  import ODCMDistanceCalculation
 from network_length_calculation import NetworkLengthCalculation
 from random_point_generator     import RandomPointGenerator
+from network_k_analysis         import NetworkKAnalysis
 
 class NetworkKFunction(object):
   ###
@@ -29,7 +32,7 @@ class NetworkKFunction(object):
     self.canRunInBackground = False
     env.overwriteOutput     = True
 
-    self.confidenceEnvelopes = OrderedDict([
+    self.permutations = OrderedDict([
       ("0 Permutations (No Confidence Envelope)", 0),
       ("9 Permutations", 9),
       ("99 Permutations", 99),
@@ -93,33 +96,44 @@ class NetworkKFunction(object):
 
     # Seventh parameter: output location.
     outNetKLoc = arcpy.Parameter(
-      displayName="Path to Output Network-K Feature Class",
+      displayName="Output Location (Database Path)",
       name="out_location",
       datatype="DEWorkspace",
       parameterType="Required",
       direction="Input")
     outNetKLoc.value = arcpy.env.workspace
 
-    # Eigth parameter: the random point feature class to create.
-    outNetKFCName = arcpy.Parameter(
-      displayName="Output Network-K Feature Class Name",
-      name = "output_point_feature_class",
+    # Eigth parameter: the raw data feature class (e.g. observed and random
+    # point computations).
+    outRawFCName = arcpy.Parameter(
+      displayName="Output Feature Class Name (Raw Network-K Data)",
+      name = "output_raw_feature_class",
       datatype="GPString",
       parameterType="Required",
       direction="Output")
+    outRawFCName.value = "Net_K_Raw_Data"
 
-    # Ninth parameter: confidence envelope (number of permutations).
-    confidenceEnv = arcpy.Parameter(
-      displayName="Compute Confidence Envelope",
-      name = "confidence_envelope",
+    # Ninth parameter: the analysis feature class.
+    outAnlFCName = arcpy.Parameter(
+      displayName="Output Feature Class Name (Network-K Analysis Data)",
+      name = "output_analysis_feature_class",
+      datatype="GPString",
+      parameterType="Required",
+      direction="Output")
+    outAnlFCName.value = "Net_K_Analysis_Data"
+
+    # Tenth parameter: confidence envelope (number of permutations).
+    numPerms = arcpy.Parameter(
+      displayName="Number of Random Point Permutations",
+      name = "num_permutations",
       datatype="GPString",
       parameterType="Required",
       direction="Input")
-    confKeys                  = self.confidenceEnvelopes.keys();
-    confidenceEnv.filter.list = confKeys
-    confidenceEnv.value       = confKeys[0]
+    permKeys             = self.permutations.keys();
+    numPerms.filter.list = permKeys
+    numPerms.value       = permKeys[0]
 
-    # Tenth parameter: projected coordinate system.
+    # Eleventh parameter: projected coordinate system.
     outCoordSys = arcpy.Parameter(
       displayName="Output Network Dataset Length Projected Coordinate System",
       name="coordinate_system",
@@ -128,7 +142,7 @@ class NetworkKFunction(object):
       direction="Input")
    
     return [points, networkDataset, numBands, begDist, distInc, snapDist,
-      outNetKLoc, outNetKFCName, confidenceEnv, outCoordSys]
+      outNetKLoc, outRawFCName, outAnlFCName, numPerms, outCoordSys]
 
   ###
   # Check if the tool is available for use.
@@ -142,7 +156,7 @@ class NetworkKFunction(object):
   ###
   def updateParameters(self, parameters):
     networkDataset = parameters[1].value
-    outCoordSys    = parameters[9].value
+    outCoordSys    = parameters[10].value
 
     # Default the coordinate system.
     if networkDataset is not None and outCoordSys is None:
@@ -152,7 +166,7 @@ class NetworkKFunction(object):
       if (ndDesc.spatialReference.projectionName != "" and
         ndDesc.spatialReference.linearUnitName == "Meter" and
         ndDesc.spatialReference.factoryCode != 0):
-        parameters[9].value = ndDesc.spatialReference.factoryCode
+        parameters[10].value = ndDesc.spatialReference.factoryCode
 
     return
 
@@ -160,15 +174,15 @@ class NetworkKFunction(object):
   # If any fields are invalid, show an appropriate error message.
   ###
   def updateMessages(self, parameters):
-    outCoordSys = parameters[9].value
+    outCoordSys = parameters[10].value
 
     if outCoordSys is not None:
       if outCoordSys.projectionName == "":
-        parameters[9].setErrorMessage("Output coordinate system must be a projected coordinate system.")
+        parameters[10].setErrorMessage("Output coordinate system must be a projected coordinate system.")
       elif outCoordSys.linearUnitName != "Meter":
-        parameters[9].setErrorMessage("Output coordinate system must have a linear unit code of 'Meter.'")
+        parameters[10].setErrorMessage("Output coordinate system must have a linear unit code of 'Meter.'")
       else:
-        parameters[9].clearMessage()
+        parameters[10].clearMessage()
     return
 
   ###
@@ -182,10 +196,10 @@ class NetworkKFunction(object):
     distInc        = parameters[4].value
     snapDist       = parameters[5].value
     outNetKLoc     = parameters[6].valueAsText
-    outNetKFCName  = parameters[7].valueAsText
-    confEnvName    = parameters[8].valueAsText
-    confEnvNum     = self.confidenceEnvelopes[confEnvName]
-    outCoordSys    = parameters[9].value
+    outRawFCName   = parameters[7].valueAsText
+    outAnlFCName   = parameters[8].valueAsText
+    numPerms       = self.permutations[parameters[9].valueAsText]
+    outCoordSys    = parameters[10].value
     ndDesc         = arcpy.Describe(networkDataset)
 
     # Refer to the note in the NetworkDatasetLength tool.
@@ -199,45 +213,75 @@ class NetworkKFunction(object):
     messages.addMessage("Distance increment: {0}".format(distInc))
     messages.addMessage("Snap distance: {0}".format(snapDist))
     messages.addMessage("Path to output network-K feature class: {0}".format(outNetKLoc))
-    messages.addMessage("Output network-K feature class name: {0}".format(outNetKFCName))
-    messages.addMessage("Compute confidence envelope name: {0} number: {1}".format(confEnvName, confEnvNum))
-    messages.addMessage("Network dataset length projected coordinate system: {0}".format(outCoordSys.name))
+    messages.addMessage("Output feature class name (raw network-K data): {0}".format(outRawFCName))
+    messages.addMessage("Output feature class name (network-K analysis data): {0}".format(outAnlFCName))
+    messages.addMessage("Number of random permutations: {0}".format(numPerms))
+    messages.addMessage("Network dataset length projected coordinate system: {0}\n".format(outCoordSys.name))
 
     # Calculate the length of the network.
     netLenCalc    = NetworkLengthCalculation()
     networkLength = netLenCalc.calculateLength(networkDataset, outCoordSys)
-    messages.addMessage("Total network length: {0}".format(networkLength))
+    messages.addMessage("Total network length: {0}\n".format(networkLength))
+
+    # The results of all the calculations end up here.
+    netKCalculations = []
 
     # Observed distance bands.
+    messages.addMessage("Iteration 0 (observed).")
     netKCalc  = self.runCalculation(messages, points, networkDataset, numBands, begDist, distInc, snapDist, networkLength)
-    distBands = netKCalc.getDistanceBands()
     numPoints = netKCalc.getNumberOfPoints()
-    # The number of bands may differ from what the user requested.  For example,
-    # if the user requests a maximum of 50 bands, 1m increment, 0m start, and
-    # the maximum distance is 3m, then there will be 4 bands (0m, 1m, 2m, and 3m).
     numBands  = netKCalc.getNumberOfDistanceBands()
+    netKCalculations.append(netKCalc.getDistanceBands())
 
     # Generate a set of random points on the network.
-    for i in range(1, confEnvNum + 1):
-      messages.addMessage("Iteration {0}".format(i))
+    randPointGen = RandomPointGenerator()
+    for i in range(1, numPerms + 1):
+      messages.addMessage("Iteration {0}.".format(i))
 
-      randPointGen = RandomPointGenerator()
-      randPoints   = randPointGen.generateRandomPoints(networkDataset, outCoordSys, numPoints)
+      randPoints = randPointGen.generateRandomPoints(networkDataset, outCoordSys, numPoints)
+      netKCalc   = self.runCalculation(messages, randPoints, networkDataset, numBands, begDist, distInc, snapDist, networkLength)
+      netKCalculations.append(netKCalc.getDistanceBands())
 
-      netKCalc  = self.runCalculation(messages, randPoints, networkDataset, numBands, begDist, distInc, snapDist, networkLength)
-      distBands = netKCalc.getDistanceBands()
+    # Write the distance bands to a table.  The 0th iteration is the observed
+    # data.  Subsequent iterations are the uniform point data.
+    outRawFCFullPath = os.path.join(outNetKLoc, outRawFCName)
+    arcpy.CreateTable_management(outNetKLoc, outRawFCName)
 
-    # Write the distance bands to a table.
-    outNetKFCFullPath = os.path.join(outNetKLoc, outNetKFCName)
-    arcpy.CreateTable_management(outNetKLoc, outNetKFCName)
+    arcpy.AddField_management(outRawFCFullPath, "Iteration_Number", "LONG")
+    arcpy.AddField_management(outRawFCFullPath, "Distance_Band",    "DOUBLE")
+    arcpy.AddField_management(outRawFCFullPath, "Point_Count",      "DOUBLE")
+    arcpy.AddField_management(outRawFCFullPath, "K_Function",       "DOUBLE")
 
-    arcpy.AddField_management(outNetKFCFullPath, "Distance_Band", "DOUBLE")
-    arcpy.AddField_management(outNetKFCFullPath, "Point_Count",   "DOUBLE")
-    arcpy.AddField_management(outNetKFCFullPath, "K_Function",    "DOUBLE")
+    with arcpy.da.InsertCursor(outRawFCFullPath,
+      ["Iteration_Number", "Distance_Band", "Point_Count", "K_Function"]) as cursor:
+      for netKNum in range(0, len(netKCalculations)):
+        for distBand in netKCalculations[netKNum]:
+          cursor.insertRow([netKNum, distBand["distanceBand"], distBand["count"], distBand["KFunction"]])
 
-    with arcpy.da.InsertCursor(outNetKFCFullPath, ["Distance_Band", "Point_Count", "K_Function"]) as cursor:
-      for distBand in distBands:
-        cursor.insertRow([distBand["distanceBand"], distBand["count"], distBand["KFunction"]])
+    # Analyze the network k results (generate plottable output).
+    netKAn_95 = NetworkKAnalysis(.95, netKCalculations)
+    netKAn_90 = NetworkKAnalysis(.90, netKCalculations)
+
+    # Write the analysis data to a table.
+    outAnlFCFullPath = os.path.join(outNetKLoc, outAnlFCName)
+    arcpy.CreateTable_management(outNetKLoc, outAnlFCName)
+    arcpy.AddField_management(outAnlFCFullPath, "Description",   "TEXT")
+    arcpy.AddField_management(outAnlFCFullPath, "Distance_Band", "DOUBLE")
+    arcpy.AddField_management(outAnlFCFullPath, "Point_Count",   "DOUBLE")
+    arcpy.AddField_management(outAnlFCFullPath, "K_Function",    "DOUBLE")
+
+    with arcpy.da.InsertCursor(outAnlFCFullPath,
+      ["Description", "Distance_Band", "Point_Count", "K_Function"]) as cursor:
+      self.writeAnalysis(cursor, netKCalculations[0],                    "Observed")
+      self.writeAnalysis(cursor, netKAn_95.getLowerConfidenceEnvelope(), "2.5% Lower Bound")
+      self.writeAnalysis(cursor, netKAn_95.getUpperConfidenceEnvelope(), "2.5% Upper Bound")
+      self.writeAnalysis(cursor, netKAn_90.getLowerConfidenceEnvelope(), "5% Lower Bound")
+      self.writeAnalysis(cursor, netKAn_90.getUpperConfidenceEnvelope(), "5% Upper Bound")
+
+  # Write the analysis data in distBands using cursor.
+  def writeAnalysis(self, cursor, distBands, description):
+    for distBand in distBands:
+        cursor.insertRow([description, distBand["distanceBand"], distBand["count"], distBand["KFunction"]])
 
   def runCalculation(self, messages, points, networkDataset, numBands, begDist, distInc, snapDist, networkLength):
     # Make the ODCM and calculate the distance between each set of points.
@@ -247,6 +291,6 @@ class NetworkKFunction(object):
 
     # Do the actual network k-function calculation and return the result.
     netKCalc = NetworkKCalculation(networkLength, odDists, begDist, distInc, numBands)
-    messages.addMessage("Distance bands: {0}".format(netKCalc.getDistanceBands()))
+    messages.addMessage("Distance bands: {0}\n".format(netKCalc.getDistanceBands()))
     return netKCalc
 
