@@ -1,4 +1,2 @@
-Store each distance band in an array, the write that array to the output table.
-Clean up the random points feature class.
-Get rid of the helper classes (random_point_generator, etc.).  Spaghetti code.
-Figure out how to export the data into Khan's format, which is not "normal" but is what he's used to dealing with.
+README.md
+Documentation for the network k function inputs, and the tool itself.
