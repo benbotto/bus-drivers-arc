@@ -8,7 +8,7 @@ from collections import OrderedDict
 ###
 class KFunctionHelper(object):
   ###
-  # Initialize the tool.
+  # Initialize the helper class.
   ###
   def __init__(self):
     self.permutations = OrderedDict([

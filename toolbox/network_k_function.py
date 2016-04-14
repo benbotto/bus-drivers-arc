@@ -1,9 +1,9 @@
 import arcpy
 import os
-import time
 import network_k_calculation
 import network_k_analysis
 import k_function_helper
+import k_function_timer
 
 from arcpy import env
 
@@ -11,10 +11,12 @@ from arcpy import env
 network_k_calculation = reload(network_k_calculation)
 network_k_analysis    = reload(network_k_analysis)
 k_function_helper     = reload(k_function_helper)
+k_function_timer      = reload(k_function_timer)
 
 from network_k_calculation import NetworkKCalculation
 from network_k_analysis    import NetworkKAnalysis
 from k_function_helper     import KFunctionHelper
+from k_function_timer      import KFunctionTimer
 
 class NetworkKFunction(object):
   ###
@@ -234,7 +236,7 @@ class NetworkKFunction(object):
     messages.addMessage("Iteration 0 (observed) complete.")
 
     # Generate a set of random points on the network.
-    startTime = time.time()
+    kfTimer = KFunctionTimer(numPerms)
     for i in range(1, numPerms + 1):
       randPoints = self.kfHelper.generateRandomPoints(networkDataset, outCoordSys, numPoints)
       odDists    = self.kfHelper.calculateDistances(networkDataset, randPoints, randPoints, snapDist)
@@ -245,11 +247,9 @@ class NetworkKFunction(object):
       arcpy.Delete_management(randPoints)
 
       # Show the progress.
-      timeDelta = time.time() - startTime
-      eta       = timeDelta / i * (numPerms - i)
-      timeDelta = time.strftime("%H:%M:%S", time.gmtime(timeDelta))
-      eta       = time.strftime("%H:%M:%S", time.gmtime(eta))
-      messages.addMessage("Iteration {0} complete.  Elapsed time: {1}s.  ETA: {2}s.".format(i, timeDelta, eta))
+      kfTimer.increment()
+      messages.addMessage("Iteration {0} complete.  Elapsed time: {1}s.  ETA: {2}s.".format(
+        i, kfTimer.getElapsedTime(), kfTimer.getETA()))
 
     # Write the distance bands to a table.  The 0th iteration is the observed
     # data.  Subsequent iterations are the uniform point data.
