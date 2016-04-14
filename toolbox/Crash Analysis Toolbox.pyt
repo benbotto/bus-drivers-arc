@@ -15,12 +15,14 @@ crash_radius_density          = reload(crash_radius_density)
 crash_network_density         = reload(crash_network_density)
 network_dataset_length        = reload(network_dataset_length)
 network_dataset_random_points = reload(network_dataset_random_points)
+network_k_function            = reload(network_k_function)
 cross_k_function              = reload(cross_k_function)
 
 from crash_radius_density          import CrashRadiusDensity
 from crash_network_density         import CrashNetworkDensity
 from network_dataset_length        import NetworkDatasetLength
 from network_dataset_random_points import NetworkDatasetRandomPoints
+from network_k_function            import NetworkKFunction
 from cross_k_function              import CrossKFunction
 
 class Toolbox(object):
