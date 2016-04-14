@@ -18,13 +18,13 @@ from network_k_analysis    import NetworkKAnalysis
 from k_function_helper     import KFunctionHelper
 from k_function_timer      import KFunctionTimer
 
-class NetworkKFunction(object):
+class GlobalKFunction(object):
   ###
   # Initialize the tool.
   ###
   def __init__(self):
-    self.label              = "Network K Function"
-    self.description        = "Uses a Network K Function to analyze clustering and dispersion trends in a set of crash points."
+    self.label              = "Global K Function"
+    self.description        = "Uses a Global Network K Function to analyze clustering and dispersion trends in a set of crash points."
     self.canRunInBackground = False
     env.overwriteOutput     = True
     self.kfHelper           = KFunctionHelper()
