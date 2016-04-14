@@ -3,16 +3,18 @@ import os
 import time
 import network_k_calculation
 import network_k_analysis
+import k_function_helper
 
-from collections import OrderedDict
-from arcpy       import env
+from arcpy import env
 
 # ArcMap caching prevention.
 network_k_calculation = reload(network_k_calculation)
 network_k_analysis    = reload(network_k_analysis)
+k_function_helper     = reload(k_function_helper)
 
 from network_k_calculation import NetworkKCalculation
 from network_k_analysis    import NetworkKAnalysis
+from k_function_helper     import KFunctionHelper
 
 class NetworkKFunction(object):
   ###
@@ -23,12 +25,7 @@ class NetworkKFunction(object):
     self.description        = "Uses a Network K Function to analyze clustering and dispersion trends in a set of crash points."
     self.canRunInBackground = False
     env.overwriteOutput     = True
-
-    self.permutations = OrderedDict([
-      ("0 Permutations (No Confidence Envelope)", 0),
-      ("9 Permutations", 9),
-      ("99 Permutations", 99),
-      ("999 Permutations", 999)])
+    self.kfHelper           = KFunctionHelper()
   
   ###
   # Get input from the users.
@@ -121,7 +118,7 @@ class NetworkKFunction(object):
       datatype="GPString",
       parameterType="Required",
       direction="Input")
-    permKeys             = self.permutations.keys();
+    permKeys             = self.kfHelper.getPermutationSelection().keys()
     numPerms.filter.list = permKeys
     numPerms.value       = permKeys[0]
 
@@ -190,7 +187,7 @@ class NetworkKFunction(object):
     outNetKLoc     = parameters[6].valueAsText
     outRawFCName   = parameters[7].valueAsText
     outAnlFCName   = parameters[8].valueAsText
-    numPerms       = self.permutations[parameters[9].valueAsText]
+    numPerms       = self.kfHelper.getPermutationSelection()[parameters[9].valueAsText]
     outCoordSys    = parameters[10].value
     ndDesc         = arcpy.Describe(networkDataset)
 
@@ -219,7 +216,7 @@ class NetworkKFunction(object):
     arcpy.ImportToolbox(toolboxFullPath)
 
     # Calculate the length of the network.
-    networkLength = self.calculateLength(networkDataset, outCoordSys)
+    networkLength = self.kfHelper.calculateLength(networkDataset, outCoordSys)
     messages.addMessage("Total network length: {0}".format(networkLength))
 
     # The results of all the calculations end up here.
@@ -227,7 +224,7 @@ class NetworkKFunction(object):
 
     # Observed distance bands.
     # Make the ODCM and calculate the distance between each set of points.
-    odDists = self.calculateDistances(networkDataset, points, snapDist)
+    odDists = self.kfHelper.calculateDistances(networkDataset, points, points, snapDist)
 
     # Do the actual network k-function calculation and return the result.
     netKCalc  = NetworkKCalculation(networkLength, odDists, begDist, distInc, numBands)
@@ -239,8 +236,8 @@ class NetworkKFunction(object):
     # Generate a set of random points on the network.
     startTime = time.time()
     for i in range(1, numPerms + 1):
-      randPoints = self.generateRandomPoints(networkDataset, outCoordSys, numPoints)
-      odDists    = self.calculateDistances(networkDataset, randPoints, snapDist)
+      randPoints = self.kfHelper.generateRandomPoints(networkDataset, outCoordSys, numPoints)
+      odDists    = self.kfHelper.calculateDistances(networkDataset, randPoints, randPoints, snapDist)
       netKCalc   = NetworkKCalculation(networkLength, odDists, begDist, distInc, numBands)
       netKCalculations.append(netKCalc.getDistanceBands())
 
@@ -297,107 +294,7 @@ class NetworkKFunction(object):
         self.writeAnalysis(cursor, netKAn_90.getLowerConfidenceEnvelope(), "5% Lower Bound")
         self.writeAnalysis(cursor, netKAn_90.getUpperConfidenceEnvelope(), "5% Upper Bound")
 
-  ###
-  # Calculate the length of networkDataset and return it.
-  # @param networkDataset A network dataset which the points are on.
-  # @param outCoordSys The output coordinate system.  Expected to be projected.
-  ###
-  def calculateLength(self, networkDataset, outCoordSys):
-    ndDesc = arcpy.Describe(networkDataset)
-    wsPath = arcpy.env.workspace
-
-    # The length will get stored in a temporary table.
-    lenTblName     = "TEMP_LENGTH_{0}".format(ndDesc.baseName)
-    lenTblFullPath = os.path.join(wsPath, lenTblName)
-    arcpy.NetworkDatasetLength_crashAnalysis(networkDataset, outCoordSys, wsPath, lenTblName)
-
-    # Pull the length from the temporary length table.
-    networkLength = 0
-    with arcpy.da.SearchCursor(in_table=lenTblFullPath, field_names=["Network_Dataset_Length"]) as cursor:
-      for row in cursor:
-        networkLength += row[0]
-
-    # Delete the temporary network length storage.
-    arcpy.Delete_management(lenTblFullPath)
-
-    return networkLength
-
-  ###
-  # Add random points to the network dataset and return the points table.
-  # @param networkDataset A network dataset which the points are on.
-  # @param outCoordSys The output coordinate system.  Expected to be projected.
-  # @param numPoints The number of points to add.
-  ###
-  def generateRandomPoints(self, networkDataset, outCoordSys, numPoints):
-    ndDesc = arcpy.Describe(networkDataset)
-    wsPath = arcpy.env.workspace
-
-    randPtsFCName   = "TEMP_RANDOM_POINTS_{0}".format(ndDesc.baseName)
-    randPtsFullPath = os.path.join(wsPath, randPtsFCName)
-    arcpy.NetworkDatasetRandomPoints_crashAnalysis(network_dataset=networkDataset,
-      out_location=wsPath, output_point_feature_class=randPtsFCName, num_points=numPoints)
-
-    return randPtsFullPath
-
-  ###
-  # Calculate the distances between each set of points using an OD Cost Matrix.
-  # The distances are returned as an object.
-  # @param networkDataset A network dataset which the points are on.
-  # @param points The points to calculate distances between.
-  # @param snapDist If a point is not directly on the network, it will be
-  #        snapped to the nearset line if it is within this threshold.
-  ###
-  def calculateDistances(self, networkDataset, points, snapDist):
-    # This is the current map, which should be an OSM base map.
-    curMapDoc = arcpy.mapping.MapDocument("CURRENT")
-
-    # Get the data from from the map (see the DataFrame object of arcpy).
-    dataFrame = arcpy.mapping.ListDataFrames(curMapDoc, "Layers")[0]
-
-    # Create the cost matrix.
-    costMatResult = arcpy.na.MakeODCostMatrixLayer(networkDataset, "TEMP_ODCM_NETWORK_K", "Length")
-    odcmLayer     = costMatResult.getOutput(0)
-
-    # The OD Cost Matrix layer will have Origins and Destinations layers.  Get
-    # a reference to each of these.
-    odcmSublayers   = arcpy.na.GetNAClassNames(odcmLayer)
-    odcmOriginLayer = odcmSublayers["Origins"]
-    odcmDestLayer   = odcmSublayers["Destinations"]
-
-    # Add the origins and destinations to the ODCM.
-    arcpy.na.AddLocations(odcmLayer, odcmOriginLayer, points, "", snapDist)
-    arcpy.na.AddLocations(odcmLayer, odcmDestLayer,   points, "", snapDist)
-
-    # Solve the matrix.
-    arcpy.na.Solve(odcmLayer)
-
-    # Show the ODCM layer (it must be showing to open th ODLines sub layer below).
-    #arcpy.mapping.AddLayer(dataFrame, odcmLayer, "TOP")
-    #arcpy.RefreshTOC()
-
-    # Get the "Lines" layer, which has the distance between each point.
-    odcmLines = arcpy.mapping.ListLayers(odcmLayer, odcmSublayers["ODLines"])[0]
-
-    # This array will hold all the OD distances.
-    odDists = []
-
-    # Get all the data from the distance data from the ODCM where the
-    # origin and destination are not the same.
-    where = """{0} <> {1}""".format(
-      arcpy.AddFieldDelimiters(odcmLines, "originID"),
-      arcpy.AddFieldDelimiters(odcmLines, "destinationID"))
-
-    with arcpy.da.SearchCursor(
-      in_table=odcmLines,
-      field_names=["Total_Length", "originID", "destinationID"],
-      where_clause=where) as cursor:
-
-      for row in cursor:
-        odDists.append({"Total_Length": row[0], "OriginID": row[1], "DestinationID": row[2]})
-
-    return odDists
-
   # Write the analysis data in distBands using cursor.
   def writeAnalysis(self, cursor, distBands, description):
     for distBand in distBands:
-        cursor.insertRow([description, distBand["distanceBand"], distBand["count"], distBand["KFunction"]])
+      cursor.insertRow([description, distBand["distanceBand"], distBand["count"], distBand["KFunction"]])
