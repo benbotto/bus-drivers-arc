@@ -4,23 +4,24 @@ sys.dont_write_bytecode = True
 
 import crash_radius_density
 import crash_network_density
-import network_k_function
 import network_dataset_length
 import network_dataset_random_points
+import network_k_function
+import cross_k_function
 
 # Live reload each module at runtime (otherwise ArcMap has to be closed and
 # reopened rather than just refreshing the toolbox).
 crash_radius_density          = reload(crash_radius_density)
 crash_network_density         = reload(crash_network_density)
-network_k_function            = reload(network_k_function)
 network_dataset_length        = reload(network_dataset_length)
 network_dataset_random_points = reload(network_dataset_random_points)
+cross_k_function              = reload(cross_k_function)
 
 from crash_radius_density          import CrashRadiusDensity
 from crash_network_density         import CrashNetworkDensity
-from network_k_function            import NetworkKFunction
 from network_dataset_length        import NetworkDatasetLength
 from network_dataset_random_points import NetworkDatasetRandomPoints
+from cross_k_function              import CrossKFunction
 
 class Toolbox(object):
   def __init__(self):
@@ -34,7 +35,8 @@ class Toolbox(object):
     self.tools = [
       CrashRadiusDensity,
       CrashNetworkDensity,
-      NetworkKFunction,
       NetworkDatasetLength,
-      NetworkDatasetRandomPoints
+      NetworkDatasetRandomPoints,
+      NetworkKFunction,
+      CrossKFunction
     ]
