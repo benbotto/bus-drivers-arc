@@ -1,6 +1,5 @@
 import arcpy
 import os
-import time
 import k_function_helper
 
 from arcpy import env
@@ -10,13 +9,13 @@ k_function_helper = reload(k_function_helper)
 
 from k_function_helper import KFunctionHelper
 
-class CrossKFunction(object):
+class RandomODCMPermutations(object):
   ###
   # Initialize the tool.
   ###
   def __init__(self):
-    self.label              = "Cross K Function"
-    self.description        = "Uses a Cross K Function to analyze clustering and dispersion trends in a set of origin and destination points (for example, bridges and crashes)."
+    self.label              = "Random ODCM Permutations"
+    self.description        = "Generates OD Cost Matrices with oberved data and a complementrary set of random point permutations."
     self.canRunInBackground = False
     env.overwriteOutput     = True
     self.kfHelper           = KFunctionHelper()
@@ -39,7 +38,7 @@ class CrossKFunction(object):
       displayName="Input Destination Points Feature Dataset (e.g. crashes)",
       name="destPoints",
       datatype="Feature Class",
-      parameterType="Required",
+      parameterType="Optional",
       direction="Input")
     destPoints.filter.list = ["Point"]
 
@@ -51,33 +50,7 @@ class CrossKFunction(object):
       parameterType="Required",
       direction="Input")
 
-    # Fourth parameter: number of distance increments.
-    numBands = arcpy.Parameter(
-      displayName="Input Number of Distance Bands",
-      name="num_dist_bands",
-      datatype="Long",
-      parameterType="Optional",
-      direction="Input")
-
-    # Fifth parameter: beginning distance.
-    begDist = arcpy.Parameter(
-      displayName="Input Beginning Distance",
-      name="beginning_distance",
-      datatype="Double",
-      parameterType="Required",
-      direction="Input")
-    begDist.value = 0
-
-    # Sixth parameter: distance increment.
-    distInc = arcpy.Parameter(
-      displayName="Input Distance Increment",
-      name="distance_increment",
-      datatype="Double",
-      parameterType="Required",
-      direction="Input")
-    distInc.value = 1000
-
-    # Seventh parameter: snap distance.
+    # Fourth parameter: snap distance.
     snapDist = arcpy.Parameter(
       displayName="Input Snap Distance",
       name="snap_distance",
@@ -86,35 +59,25 @@ class CrossKFunction(object):
       direction="Input")
     snapDist.value = 25
 
-    # Eigth parameter: output location.
-    outNetKLoc = arcpy.Parameter(
+    # Fifth parameter: output location.
+    outLoc = arcpy.Parameter(
       displayName="Output Location (Database Path)",
       name="out_location",
       datatype="DEWorkspace",
       parameterType="Required",
       direction="Input")
-    outNetKLoc.value = arcpy.env.workspace
+    outLoc.value = arcpy.env.workspace
 
-    # Ninth parameter: the raw data feature class (e.g. observed and random
-    # point computations).
+    # Sixth parameter: the raw data feature class.
     outRawFCName = arcpy.Parameter(
-      displayName="Output Feature Class Name (Raw Cross-K Data)",
+      displayName="Output Feature Class Name (Raw ODCM Data)",
       name = "output_raw_feature_class",
       datatype="GPString",
       parameterType="Required",
       direction="Output")
-    outRawFCName.value = "Cross_K_Raw_Data"
+    outRawFCName.value = "ODCM_Raw_Data"
 
-    # Tenth parameter: the analysis feature class.
-    outAnlFCName = arcpy.Parameter(
-      displayName="Output Feature Class Name (Cross-K Analysis Data)",
-      name = "output_analysis_feature_class",
-      datatype="GPString",
-      parameterType="Required",
-      direction="Output")
-    outAnlFCName.value = "Cross_K_Analysis_Data"
-
-    # Eleventh parameter: confidence envelope (number of permutations).
+    # Seventh parameter: confidence envelope (number of permutations).
     numPerms = arcpy.Parameter(
       displayName="Number of Random Point Permutations",
       name = "num_permutations",
@@ -125,7 +88,7 @@ class CrossKFunction(object):
     numPerms.filter.list = permKeys
     numPerms.value       = permKeys[0]
 
-    # Twelth parameter: projected coordinate system.
+    # Eigth parameter: projected coordinate system.
     outCoordSys = arcpy.Parameter(
       displayName="Output Network Dataset Length Projected Coordinate System",
       name="coordinate_system",
@@ -133,8 +96,8 @@ class CrossKFunction(object):
       parameterType="Optional",
       direction="Input")
    
-    return [srcPoints, destPoints, networkDataset, numBands, begDist, distInc,
-      snapDist, outNetKLoc, outRawFCName, outAnlFCName, numPerms, outCoordSys]
+    return [srcPoints, destPoints, networkDataset, snapDist, outLoc,
+      outRawFCName, numPerms, outCoordSys]
 
   ###
   # Check if the tool is available for use.
@@ -147,8 +110,8 @@ class CrossKFunction(object):
   # Set parameter defaults.
   ###
   def updateParameters(self, parameters):
-    networkDataset = parameters[2].value
-    outCoordSys    = parameters[11].value
+    networkDataset = parameters[1].value
+    outCoordSys    = parameters[7].value
 
     # Default the coordinate system.
     if networkDataset is not None and outCoordSys is None:
@@ -166,15 +129,15 @@ class CrossKFunction(object):
   # If any fields are invalid, show an appropriate error message.
   ###
   def updateMessages(self, parameters):
-    outCoordSys = parameters[11].value
+    outCoordSys = parameters[7].value
 
     if outCoordSys is not None:
       if outCoordSys.projectionName == "":
-        parameters[11].setErrorMessage("Output coordinate system must be a projected coordinate system.")
+        parameters[7].setErrorMessage("Output coordinate system must be a projected coordinate system.")
       elif outCoordSys.linearUnitName != "Meter":
-        parameters[11].setErrorMessage("Output coordinate system must have a linear unit code of 'Meter.'")
+        parameters[7].setErrorMessage("Output coordinate system must have a linear unit code of 'Meter.'")
       else:
-        parameters[11].clearMessage()
+        parameters[7].clearMessage()
     return
 
   ###
@@ -184,15 +147,11 @@ class CrossKFunction(object):
     srcPoints      = parameters[0].valueAsText
     destPoints     = parameters[1].valueAsText
     networkDataset = parameters[2].valueAsText
-    numBands       = parameters[3].value
-    begDist        = parameters[4].value
-    distInc        = parameters[5].value
-    snapDist       = parameters[6].value
-    outNetKLoc     = parameters[7].valueAsText
-    outRawFCName   = parameters[8].valueAsText
-    outAnlFCName   = parameters[9].valueAsText
-    numPerms       = self.kfHelper.getPermutationSelection()[parameters[10].valueAsText]
-    outCoordSys    = parameters[11].value
+    snapDist       = parameters[3].value
+    outLoc         = parameters[4].valueAsText
+    outRawFCName   = parameters[5].valueAsText
+    numPerms       = self.kfHelper.getPermutationSelection()[parameters[6].valueAsText]
+    outCoordSys    = parameters[7].value
     ndDesc         = arcpy.Describe(networkDataset)
 
     # Refer to the note in the NetworkDatasetLength tool.
@@ -202,28 +161,9 @@ class CrossKFunction(object):
     messages.addMessage("\nOrigin points: {0}".format(srcPoints))
     messages.addMessage("Destination points: {0}".format(destPoints))
     messages.addMessage("Network dataset: {0}".format(networkDataset))
-    messages.addMessage("Number of distance bands: {0}".format(numBands))
-    messages.addMessage("Beginning distance: {0}".format(begDist))
-    messages.addMessage("Distance increment: {0}".format(distInc))
     messages.addMessage("Snap distance: {0}".format(snapDist))
-    messages.addMessage("Path to output cross-K feature class: {0}".format(outNetKLoc))
+    messages.addMessage("Path to output feature class: {0}".format(outLoc))
     messages.addMessage("Output feature class name (raw cross-K data): {0}".format(outRawFCName))
-    messages.addMessage("Output feature class name (cross-K analysis data): {0}".format(outAnlFCName))
     messages.addMessage("Number of random permutations: {0}".format(numPerms))
     messages.addMessage("Network dataset length projected coordinate system: {0}\n".format(outCoordSys.name))
-
-    # The Network Dataset Length and Generate Random Points tools are used.
-    # Import the toolbox.  It's is in the Crash Analysis Toolbox (this tool's
-    # toolbox).
-    toolboxPath     = os.path.dirname(os.path.abspath(__file__))
-    toolboxName     = "Crash Analysis Toolbox.pyt"
-    toolboxFullPath = os.path.join(toolboxPath, toolboxName)
-    arcpy.ImportToolbox(toolboxFullPath)
-
-    # Calculate the length of the network.
-    networkLength = self.kfHelper.calculateLength(networkDataset, outCoordSys)
-    messages.addMessage("Total network length: {0}".format(networkLength))
-
-    # The results of all the calculations end up here.
-    netKCalculations = []
   

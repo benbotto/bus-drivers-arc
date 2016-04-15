@@ -6,6 +6,7 @@ import crash_radius_density
 import crash_network_density
 import network_dataset_length
 import network_dataset_random_points
+import random_odcm_permutations
 import global_k_function
 import cross_k_function
 
@@ -15,6 +16,7 @@ crash_radius_density          = reload(crash_radius_density)
 crash_network_density         = reload(crash_network_density)
 network_dataset_length        = reload(network_dataset_length)
 network_dataset_random_points = reload(network_dataset_random_points)
+random_odcm_permutations      = reload(random_odcm_permutations)
 global_k_function             = reload(global_k_function)
 cross_k_function              = reload(cross_k_function)
 
@@ -22,6 +24,7 @@ from crash_radius_density          import CrashRadiusDensity
 from crash_network_density         import CrashNetworkDensity
 from network_dataset_length        import NetworkDatasetLength
 from network_dataset_random_points import NetworkDatasetRandomPoints
+from random_odcm_permutations      import RandomODCMPermutations
 from global_k_function             import GlobalKFunction
 from cross_k_function              import CrossKFunction
 
@@ -39,6 +42,7 @@ class Toolbox(object):
       CrashNetworkDensity,
       NetworkDatasetLength,
       NetworkDatasetRandomPoints,
+      RandomODCMPermutations,
       GlobalKFunction,
       CrossKFunction
     ]
