@@ -52,7 +52,7 @@ class RandomODCMPermutations(object):
       displayName="Input Destination Points Feature Dataset (e.g. crashes)",
       name="destPoints",
       datatype="Feature Class",
-      parameterType="Optional",
+      parameterType="Required",
       direction="Input")
     destPoints.filter.list = ["Point"]
 
@@ -132,7 +132,7 @@ class RandomODCMPermutations(object):
   # Set parameter defaults.
   ###
   def updateParameters(self, parameters):
-    networkDataset = parameters[2].value
+    networkDataset = parameters[3].value
     outCoordSys    = parameters[9].value
 
     # Default the coordinate system.
@@ -145,7 +145,15 @@ class RandomODCMPermutations(object):
         ndDesc.spatialReference.factoryCode != 0):
         parameters[9].value = ndDesc.spatialReference.factoryCode
 
-    return
+    # Enable/disable the destination points based on the analysis type.  CROSS has
+    # sources and destinations; GLOBAL only has one set of points.
+    analysisTypes = self.kfHelper.getAnalysisTypeSelection()
+    if parameters[0].valueAsText in analysisTypes:
+      if analysisTypes[parameters[0].valueAsText] == "CROSS":
+        parameters[2].enabled = True
+      else:
+        parameters[2].enabled = False
+        parameters[2].value = parameters[1].valueAsText
 
   ###
   # If any fields are invalid, show an appropriate error message.
@@ -160,7 +168,6 @@ class RandomODCMPermutations(object):
         parameters[9].setErrorMessage("Output coordinate system must have a linear unit code of 'Meter.'")
       else:
         parameters[9].clearMessage()
-    return
 
   ###
   # Execute the tool.
@@ -203,9 +210,13 @@ class RandomODCMPermutations(object):
     arcpy.AddField_management(outFCFullPath, "DestinationID",    "LONG")
     arcpy.AddField_management(outFCFullPath, "Total_Length",     "DOUBLE")
 
-    # Observed distance bands.
-    # Make the ODCM and calculate the distance between each set of points.
-    odDists = self.calculateDistances(networkDataset, srcPoints, destPoints, snapDist, cutoff)
+    # Make the observed ODCM and calculate the distance between each set of
+    # points.  If a cross analysis is selected, find the distance between the
+    # source and destination points.  Otherwise there is only one set of points
+    if analysisType == "CROSS":
+      odDists = self.calculateDistances(networkDataset, srcPoints, destPoints, snapDist, cutoff)
+    else:
+      odDists = self.calculateDistances(networkDataset, srcPoints, srcPoints, snapDist, cutoff)
     self.writeODCMData(odDists, 0, outFCFullPath)
 
     # Count the number of unique destinations in the resulting ODCM.  These are
@@ -215,9 +226,15 @@ class RandomODCMPermutations(object):
 
     # Generate the OD Cost matrix permutations.
     kfTimer = KFunctionTimer(numPerms)
-    for i in range(0, numPerms):
+    for i in range(1, numPerms + 1):
       randPoints = self.kfHelper.generateRandomPoints(networkDataset, outCoordSys, numDests)
-      odDists    = self.calculateDistances(networkDataset, randPoints, randPoints, snapDist, cutoff) # TODO: src/dest global or cross.
+
+      # See the note above: Either find the distance from the source points to the random points,
+      # or the distance between the random points.
+      if analysisType == "CROSS":
+        odDists = self.calculateDistances(networkDataset, srcPoints, randPoints, snapDist, cutoff)
+      else:
+        odDists = self.calculateDistances(networkDataset, randPoints, randPoints, snapDist, cutoff)
       self.writeODCMData(odDists, i, outFCFullPath)
 
       # Clean up the random points table.
