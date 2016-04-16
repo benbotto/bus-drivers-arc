@@ -16,6 +16,11 @@ class KFunctionHelper(object):
       ("9 Permutations", 9),
       ("99 Permutations", 99),
       ("999 Permutations", 999)])
+
+    self.analysisTypes = OrderedDict([
+      ("Global Analysis", "GLOBAL"),
+      ("Cross Analysis",  "CROSS")])
+
     self.caToolsImported = False
 
   # Helper function to import the crash analysis toolbox.
@@ -36,6 +41,12 @@ class KFunctionHelper(object):
   ###
   def getPermutationSelection(self):
     return self.permutations
+
+  ###
+  # Get a map of analysis types.
+  ###
+  def getAnalysisTypeSelection(self):
+    return self.analysisTypes
 
   ###
   # Calculate the length of networkDataset and return it.
