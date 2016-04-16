@@ -16,6 +16,20 @@ class KFunctionHelper(object):
       ("9 Permutations", 9),
       ("99 Permutations", 99),
       ("999 Permutations", 999)])
+    self.caToolsImported = False
+
+  # Helper function to import the crash analysis toolbox.
+  def _importCAToolbox(self):
+    if not self.caToolsImported:
+      # The Network Dataset Length and Generate Random Points tools are used.
+      # Import the toolbox.  It's is in the Crash Analysis Toolbox (this tool's
+      # toolbox).
+      toolboxPath     = os.path.dirname(os.path.abspath(__file__))
+      toolboxName     = "Crash Analysis Toolbox.pyt"
+      toolboxFullPath = os.path.join(toolboxPath, toolboxName)
+      arcpy.ImportToolbox(toolboxFullPath)
+
+      self.caToolsImported = True
 
   ###
   # Get a map of selectable permutation numbers.
@@ -35,6 +49,7 @@ class KFunctionHelper(object):
     # The length will get stored in a temporary table.
     lenTblName     = "TEMP_LENGTH_{0}".format(ndDesc.baseName)
     lenTblFullPath = os.path.join(wsPath, lenTblName)
+    self._importCAToolbox()
     arcpy.NetworkDatasetLength_crashAnalysis(networkDataset, outCoordSys, wsPath, lenTblName)
 
     # Pull the length from the temporary length table.
@@ -122,7 +137,18 @@ class KFunctionHelper(object):
 
     randPtsFCName   = "TEMP_RANDOM_POINTS_{0}".format(ndDesc.baseName)
     randPtsFullPath = os.path.join(wsPath, randPtsFCName)
+    self._importCAToolbox()
     arcpy.NetworkDatasetRandomPoints_crashAnalysis(network_dataset=networkDataset,
       out_location=wsPath, output_point_feature_class=randPtsFCName, num_points=numPoints)
 
     return randPtsFullPath
+
+  ###
+  # Calculate the number of unique destination points in the OD cost matrix.
+  # @param odDists An array of objects containing a DestinationID key.
+  ###
+  def countNumberOfDestinations(self, odDists):
+    pointLookup = {}
+    for odDist in odDists:
+      pointLookup[odDist["DestinationID"]] = True
+    return len(pointLookup.keys())

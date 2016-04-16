@@ -1,6 +1,5 @@
 import arcpy
 import os
-import time
 import k_function_helper
 
 from arcpy import env

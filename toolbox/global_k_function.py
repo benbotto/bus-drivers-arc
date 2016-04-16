@@ -209,14 +209,6 @@ class GlobalKFunction(object):
     messages.addMessage("Number of random permutations: {0}".format(numPerms))
     messages.addMessage("Network dataset length projected coordinate system: {0}\n".format(outCoordSys.name))
 
-    # The Network Dataset Length and Generate Random Points tools are used.
-    # Import the toolbox.  It's is in the Crash Analysis Toolbox (this tool's
-    # toolbox).
-    toolboxPath     = os.path.dirname(os.path.abspath(__file__))
-    toolboxName     = "Crash Analysis Toolbox.pyt"
-    toolboxFullPath = os.path.join(toolboxPath, toolboxName)
-    arcpy.ImportToolbox(toolboxFullPath)
-
     # Calculate the length of the network.
     networkLength = self.kfHelper.calculateLength(networkDataset, outCoordSys)
     messages.addMessage("Total network length: {0}".format(networkLength))
