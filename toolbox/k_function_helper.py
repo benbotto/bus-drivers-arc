@@ -75,6 +75,54 @@ class KFunctionHelper(object):
     return networkLength
 
   ###
+  # Generate the ODCM permutations.
+  # @param analysisType Either Global Analysis or Cross Analysis.
+  # @param srcPoints The source points.
+  # @param destPoints The destination points.  Ignored if analysisType is GLOBAL.
+  # @param networkDataset The network dataset to use for the ODCMs.
+  # @param snapDist The snap distance for points that are not directly on the network.
+  # @param cutoff The cutoff distance.  Ignored if None.
+  # @param outLoc The full path to a database.  The ODCM data will be written here.
+  # @param outFC The name of the feature class in outLoc where the ODCM data will be written.
+  # @param numPerms The number of permutations (string representation).
+  # @param outCoordSys The coordinate system to project the points into (optional).
+  ###
+  def generateODCMPermutations(self, analysisType, srcPoints, destPoints,
+    networkDataset, snapDist, cutoff, outLoc, outFC, numPerms, outCoordSys):
+    # The results go into an array of objects.
+    odcms = []
+    itNum = -1
+
+    # For the Global Analysis, the destination points are ignored (same as source).
+    if analysisType == "Global Analysis":
+      destPoints = srcPoints
+
+    # Create all the permutations.
+    self._importCAToolbox()
+    arcpy.RandomODCMPermutations_crashAnalysis(analysisType, srcPoints, destPoints,
+      networkDataset, snapDist, cutoff, outLoc, outFC, numPerms, outCoordSys)
+
+    # Read the results into an array of objects.
+    with arcpy.da.SearchCursor(in_table=outFC,
+      field_names=["Iteration_Number", "OriginID", "DestinationID", "Total_Length"],
+      sql_clause=[None, "ORDER BY Iteration_Number, OriginID, DestinationID"]) as cursor:
+      for row in cursor:
+
+        # When the iteration changes, start a new list.
+        if row[0] != itNum:
+          itNum  += 1
+          odcms.append([])
+
+        odcms[-1].append({
+          "Iteration_Number": row[0],
+          "OriginID":         row[1],
+          "DestinationID":    row[2],
+          "Total_Length":     row[3]})
+
+    return odcms
+
+  ###
+  # TODO: REMOVE THIS FUNCTION.
   # Calculate the distances between each set of points using an OD Cost Matrix.
   # The distances are returned as an object.
   # @param networkDataset A network dataset which the points are on.

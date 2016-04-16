@@ -225,48 +225,30 @@ class GlobalKFunction(object):
     networkLength = self.kfHelper.calculateLength(networkDataset, outCoordSys)
     messages.addMessage("Total network length: {0}".format(networkLength))
 
-    # Generate the ODCM permutations, including the ODCM for the observed data.
+    # Set up a cutoff lenght for the ODCM data if possible.  This is a
+    # speed optimization.
     if numBands is not None:
       cutoff = numBands * distInc
     else:
       cutoff = None
 
-    odDists = self.kfHelper.generateODCMPermutations("Global Analysis", points,
+    # Generate the ODCM permutations, including the ODCM for the observed data.
+    odcms = self.kfHelper.generateODCMPermutations("Global Analysis", points,
       None, networkDataset, snapDist, cutoff, outNetKLoc, outRawODCMFCName,
       numPermsDesc, outCoordSys)
-
-    messages.addMessage("OD Distances: {0}".format(odDists))
-    return
 
     # The results of all the calculations end up here.
     netKCalculations = []
 
-    # Observed distance bands.
-    # Make the ODCM and calculate the distance between each set of points.
-    odDists = self.kfHelper.calculateDistances(networkDataset, points, points, snapDist)
-
-    # Do the actual network k-function calculation and return the result.
-    netKCalc  = NetworkKCalculation(networkLength, odDists, begDist, distInc, numBands)
-    numPoints = netKCalc.getNumberOfPoints()
-    numBands  = netKCalc.getNumberOfDistanceBands()
-    netKCalculations.append(netKCalc.getDistanceBands())
-    messages.addMessage("Iteration 0 (observed) complete.")
-
-    # Generate a set of random points on the network.
-    kfTimer = KFunctionTimer(numPerms)
-    for i in range(1, numPerms + 1):
-      randPoints = self.kfHelper.generateRandomPoints(networkDataset, outCoordSys, numPoints)
-      odDists    = self.kfHelper.calculateDistances(networkDataset, randPoints, randPoints, snapDist)
-      netKCalc   = NetworkKCalculation(networkLength, odDists, begDist, distInc, numBands)
+    for odDists in odcms:
+      # Do the actual network k-function calculation.
+      netKCalc = NetworkKCalculation(networkLength, odDists, begDist, distInc, numBands)
       netKCalculations.append(netKCalc.getDistanceBands())
 
-      # Clean up the random points table.
-      arcpy.Delete_management(randPoints)
-
-      # Show the progress.
-      kfTimer.increment()
-      messages.addMessage("Iteration {0} complete.  Elapsed time: {1}s.  ETA: {2}s.".format(
-        i, kfTimer.getElapsedTime(), kfTimer.getETA()))
+      # If the user did not specifiy a number of distance bands explicitly,
+      # store the number of bands.  It's computed from the observed data.
+      if numBands is None:
+        numBands = netKCalc.getNumberOfDistanceBands()
 
     # Write the distance bands to a table.  The 0th iteration is the observed
     # data.  Subsequent iterations are the uniform point data.
