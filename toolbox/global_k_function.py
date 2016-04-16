@@ -33,7 +33,7 @@ class GlobalKFunction(object):
   # Get input from the users.
   ###
   def getParameterInfo(self):
-    # First parameter: input origin features.
+    # Input origin features.
     points = arcpy.Parameter(
       displayName="Input Points Feature Dataset",
       name="points",
@@ -42,7 +42,7 @@ class GlobalKFunction(object):
       direction="Input")
     points.filter.list = ["Point"]
 
-    # Second parameter: network dataset.
+    # Network dataset.
     networkDataset = arcpy.Parameter(
       displayName="Input Network Dataset",
       name = "network_dataset",
@@ -50,7 +50,7 @@ class GlobalKFunction(object):
       parameterType="Required",
       direction="Input")
 
-    # Third parameter: number of distance increments.
+    # Number of distance increments.
     numBands = arcpy.Parameter(
       displayName="Input Number of Distance Bands",
       name="num_dist_bands",
@@ -58,7 +58,7 @@ class GlobalKFunction(object):
       parameterType="Optional",
       direction="Input")
 
-    # Fourth parameter: beginning distance.
+    # Beginning distance.
     begDist = arcpy.Parameter(
       displayName="Input Beginning Distance",
       name="beginning_distance",
@@ -67,7 +67,7 @@ class GlobalKFunction(object):
       direction="Input")
     begDist.value = 0
 
-    # Fifth parameter: distance increment.
+    # Distance increment.
     distInc = arcpy.Parameter(
       displayName="Input Distance Increment",
       name="distance_increment",
@@ -76,7 +76,7 @@ class GlobalKFunction(object):
       direction="Input")
     distInc.value = 1000
 
-    # Sixth parameter: snap distance.
+    # Snap distance.
     snapDist = arcpy.Parameter(
       displayName="Input Snap Distance",
       name="snap_distance",
@@ -85,7 +85,7 @@ class GlobalKFunction(object):
       direction="Input")
     snapDist.value = 25
 
-    # Seventh parameter: output location.
+    # Output location.
     outNetKLoc = arcpy.Parameter(
       displayName="Output Location (Database Path)",
       name="out_location",
@@ -94,26 +94,34 @@ class GlobalKFunction(object):
       direction="Input")
     outNetKLoc.value = arcpy.env.workspace
 
-    # Eigth parameter: the raw data feature class (e.g. observed and random
-    # point computations).
-    outRawFCName = arcpy.Parameter(
-      displayName="Output Feature Class Name (Raw Network-K Data)",
-      name = "output_raw_feature_class",
+    # The raw ODCM data.
+    outRawODCMFCName = arcpy.Parameter(
+      displayName="Raw ODCM Data Table",
+      name = "output_raw_odcm_feature_class",
       datatype="GPString",
       parameterType="Required",
       direction="Output")
-    outRawFCName.value = "Net_K_Raw_Data"
+    outRawODCMFCName.value = "Net_K_Raw_ODCM_Data"
 
-    # Ninth parameter: the analysis feature class.
+    # The raw data feature class (e.g. observed and random point computations).
+    outRawFCName = arcpy.Parameter(
+      displayName="Raw Network-K Data Table (Raw Analysis Data)",
+      name = "output_raw_analysis_feature_class",
+      datatype="GPString",
+      parameterType="Required",
+      direction="Output")
+    outRawFCName.value = "Net_K_Raw_Analysis_Data"
+
+    # The analysis feature class.
     outAnlFCName = arcpy.Parameter(
-      displayName="Output Feature Class Name (Network-K Analysis Data)",
+      displayName="Network-K Summary Data (Plottable Data)",
       name = "output_analysis_feature_class",
       datatype="GPString",
       parameterType="Required",
       direction="Output")
-    outAnlFCName.value = "Net_K_Analysis_Data"
+    outAnlFCName.value = "Net_K_Summary_Data"
 
-    # Tenth parameter: confidence envelope (number of permutations).
+    # Confidence envelope (number of permutations).
     numPerms = arcpy.Parameter(
       displayName="Number of Random Point Permutations",
       name = "num_permutations",
@@ -124,7 +132,7 @@ class GlobalKFunction(object):
     numPerms.filter.list = permKeys
     numPerms.value       = permKeys[0]
 
-    # Eleventh parameter: projected coordinate system.
+    # Projected coordinate system.
     outCoordSys = arcpy.Parameter(
       displayName="Output Network Dataset Length Projected Coordinate System",
       name="coordinate_system",
@@ -133,7 +141,8 @@ class GlobalKFunction(object):
       direction="Input")
    
     return [points, networkDataset, numBands, begDist, distInc, snapDist,
-      outNetKLoc, outRawFCName, outAnlFCName, numPerms, outCoordSys]
+      outNetKLoc, outRawODCMFCName, outRawFCName, outAnlFCName, numPerms,
+      outCoordSys]
 
   ###
   # Check if the tool is available for use.
@@ -147,7 +156,7 @@ class GlobalKFunction(object):
   ###
   def updateParameters(self, parameters):
     networkDataset = parameters[1].value
-    outCoordSys    = parameters[10].value
+    outCoordSys    = parameters[11].value
 
     # Default the coordinate system.
     if networkDataset is not None and outCoordSys is None:
@@ -157,7 +166,7 @@ class GlobalKFunction(object):
       if (ndDesc.spatialReference.projectionName != "" and
         ndDesc.spatialReference.linearUnitName == "Meter" and
         ndDesc.spatialReference.factoryCode != 0):
-        parameters[10].value = ndDesc.spatialReference.factoryCode
+        parameters[11].value = ndDesc.spatialReference.factoryCode
 
     return
 
@@ -165,33 +174,35 @@ class GlobalKFunction(object):
   # If any fields are invalid, show an appropriate error message.
   ###
   def updateMessages(self, parameters):
-    outCoordSys = parameters[10].value
+    outCoordSys = parameters[11].value
 
     if outCoordSys is not None:
       if outCoordSys.projectionName == "":
-        parameters[10].setErrorMessage("Output coordinate system must be a projected coordinate system.")
+        parameters[11].setErrorMessage("Output coordinate system must be a projected coordinate system.")
       elif outCoordSys.linearUnitName != "Meter":
-        parameters[10].setErrorMessage("Output coordinate system must have a linear unit code of 'Meter.'")
+        parameters[11].setErrorMessage("Output coordinate system must have a linear unit code of 'Meter.'")
       else:
-        parameters[10].clearMessage()
+        parameters[11].clearMessage()
     return
 
   ###
   # Execute the tool.
   ###
   def execute(self, parameters, messages):
-    points         = parameters[0].valueAsText
-    networkDataset = parameters[1].valueAsText
-    numBands       = parameters[2].value
-    begDist        = parameters[3].value
-    distInc        = parameters[4].value
-    snapDist       = parameters[5].value
-    outNetKLoc     = parameters[6].valueAsText
-    outRawFCName   = parameters[7].valueAsText
-    outAnlFCName   = parameters[8].valueAsText
-    numPerms       = self.kfHelper.getPermutationSelection()[parameters[9].valueAsText]
-    outCoordSys    = parameters[10].value
-    ndDesc         = arcpy.Describe(networkDataset)
+    points           = parameters[0].valueAsText
+    networkDataset   = parameters[1].valueAsText
+    numBands         = parameters[2].value
+    begDist          = parameters[3].value
+    distInc          = parameters[4].value
+    snapDist         = parameters[5].value
+    outNetKLoc       = parameters[6].valueAsText
+    outRawODCMFCName = parameters[7].valueAsText
+    outRawFCName     = parameters[8].valueAsText
+    outAnlFCName     = parameters[9].valueAsText
+    numPermsDesc     = parameters[10].valueAsText
+    numPerms         = self.kfHelper.getPermutationSelection()[numPermsDesc]
+    outCoordSys      = parameters[11].value
+    ndDesc           = arcpy.Describe(networkDataset)
 
     # Refer to the note in the NetworkDatasetLength tool.
     if outCoordSys is None:
@@ -203,15 +214,29 @@ class GlobalKFunction(object):
     messages.addMessage("Beginning distance: {0}".format(begDist))
     messages.addMessage("Distance increment: {0}".format(distInc))
     messages.addMessage("Snap distance: {0}".format(snapDist))
-    messages.addMessage("Path to output network-K feature class: {0}".format(outNetKLoc))
-    messages.addMessage("Output feature class name (raw network-K data): {0}".format(outRawFCName))
-    messages.addMessage("Output feature class name (network-K analysis data): {0}".format(outAnlFCName))
+    messages.addMessage("Output location (database path): {0}".format(outNetKLoc))
+    messages.addMessage("Raw ODCM data table: {0}".format(outRawODCMFCName))
+    messages.addMessage("Raw network-K data table (raw analysis data): {0}".format(outRawFCName))
+    messages.addMessage("Network-K summary data (plottable data): {0}".format(outAnlFCName))
     messages.addMessage("Number of random permutations: {0}".format(numPerms))
     messages.addMessage("Network dataset length projected coordinate system: {0}\n".format(outCoordSys.name))
 
     # Calculate the length of the network.
     networkLength = self.kfHelper.calculateLength(networkDataset, outCoordSys)
     messages.addMessage("Total network length: {0}".format(networkLength))
+
+    # Generate the ODCM permutations, including the ODCM for the observed data.
+    if numBands is not None:
+      cutoff = numBands * distInc
+    else:
+      cutoff = None
+
+    odDists = self.kfHelper.generateODCMPermutations("Global Analysis", points,
+      None, networkDataset, snapDist, cutoff, outNetKLoc, outRawODCMFCName,
+      numPermsDesc, outCoordSys)
+
+    messages.addMessage("OD Distances: {0}".format(odDists))
+    return
 
     # The results of all the calculations end up here.
     netKCalculations = []
