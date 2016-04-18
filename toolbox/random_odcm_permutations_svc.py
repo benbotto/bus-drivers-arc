@@ -35,15 +35,8 @@ class RandomODCMPermutationsSvc:
   ###
   def generateODCMPermutations(self, analysisType, srcPoints, destPoints,
     networkDataset, snapDist, cutoff, outLoc, outFC, numPerms, outCoordSys, messages):
-    # This is the full path to the output feature class.
-    outFCFullPath = os.path.join(outLoc, outFC)
-
-    # Create the output table.
-    arcpy.CreateTable_management(outLoc, outFC)
-    arcpy.AddField_management(outFCFullPath, "Iteration_Number", "LONG")
-    arcpy.AddField_management(outFCFullPath, "OriginID",         "LONG")
-    arcpy.AddField_management(outFCFullPath, "DestinationID",    "LONG")
-    arcpy.AddField_management(outFCFullPath, "Total_Length",     "DOUBLE")
+    # The array of OD Cost Matrices end up here.
+    odcms = []
 
     # Make the observed ODCM and calculate the distance between each set of
     # points.  If a cross analysis is selected, find the distance between the
@@ -52,7 +45,7 @@ class RandomODCMPermutationsSvc:
       odDists = self.calculateDistances(networkDataset, srcPoints, destPoints, snapDist, cutoff)
     else:
       odDists = self.calculateDistances(networkDataset, srcPoints, srcPoints, snapDist, cutoff)
-    self.writeODCMData(odDists, 0, outFCFullPath)
+    odcms.append(odDists)
 
     # Count the number of unique destinations in the resulting ODCM.  These are
     # the "crash" points.  During each permutation below, this number of random
@@ -70,7 +63,7 @@ class RandomODCMPermutationsSvc:
         odDists = self.calculateDistances(networkDataset, srcPoints, randPoints, snapDist, cutoff)
       else:
         odDists = self.calculateDistances(networkDataset, randPoints, randPoints, snapDist, cutoff)
-      self.writeODCMData(odDists, i, outFCFullPath)
+      odcms.append(odDists)
 
       # Clean up the random points table.
       arcpy.Delete_management(randPoints)
@@ -79,6 +72,10 @@ class RandomODCMPermutationsSvc:
       kfTimer.increment()
       messages.addMessage("Iteration {0} complete.  Elapsed time: {1}s.  ETA: {2}s.".format(
         i, kfTimer.getElapsedTime(), kfTimer.getETA()))
+
+    # Store the OD cost matrices.
+    self.writeODCMData(odcms, outLoc, outFC)
+    return odcms
 
   ###
   # Calculate the distances between each set of points using an OD Cost Matrix.
@@ -144,12 +141,26 @@ class RandomODCMPermutationsSvc:
   
   ###
   # Write the ODCM data to a table.
-  # @param odDists The ODCM data.
-  # @param iteration The iteration number.
-  # @param tablePath The full path to the output table.
+  # @param odcms An array of OD Cost Matrices.
+  # @param outLoc The location of a database.
+  # @param outFC The feature class name, in outLoc, to write the data to.
   ###
-  def writeODCMData(self, odDists, iteration, tablePath):
-    with arcpy.da.InsertCursor(tablePath,
+  def writeODCMData(self, odcms, outLoc, outFC):
+    iteration = 0
+
+    # This is the full path to the output feature class.
+    outFCFullPath = os.path.join(outLoc, outFC)
+
+    # Create the output table.
+    arcpy.CreateTable_management(outLoc, outFC)
+    arcpy.AddField_management(outFCFullPath, "Iteration_Number", "LONG")
+    arcpy.AddField_management(outFCFullPath, "OriginID",         "LONG")
+    arcpy.AddField_management(outFCFullPath, "DestinationID",    "LONG")
+    arcpy.AddField_management(outFCFullPath, "Total_Length",     "DOUBLE")
+
+    with arcpy.da.InsertCursor(outFCFullPath,
       ["Iteration_Number", "OriginID", "DestinationID", "Total_Length"]) as cursor:
-      for odDist in odDists:
-        cursor.insertRow([iteration, odDist["OriginID"], odDist["DestinationID"], odDist["Total_Length"]])
+      for odDists in odcms:
+        for odDist in odDists:
+          cursor.insertRow([iteration, odDist["OriginID"], odDist["DestinationID"], odDist["Total_Length"]])
+        iteration += 1
