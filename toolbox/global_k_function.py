@@ -3,20 +3,20 @@ import os
 import network_k_calculation
 import network_k_analysis
 import k_function_helper
-import k_function_timer
+import random_odcm_permutations_svc
 
 from arcpy import env
 
 # ArcMap caching prevention.
-network_k_calculation = reload(network_k_calculation)
-network_k_analysis    = reload(network_k_analysis)
-k_function_helper     = reload(k_function_helper)
-k_function_timer      = reload(k_function_timer)
+network_k_calculation        = reload(network_k_calculation)
+network_k_analysis           = reload(network_k_analysis)
+k_function_helper            = reload(k_function_helper)
+random_odcm_permutations_svc = reload(random_odcm_permutations_svc)
 
-from network_k_calculation import NetworkKCalculation
-from network_k_analysis    import NetworkKAnalysis
-from k_function_helper     import KFunctionHelper
-from k_function_timer      import KFunctionTimer
+from network_k_calculation        import NetworkKCalculation
+from network_k_analysis           import NetworkKAnalysis
+from k_function_helper            import KFunctionHelper
+from random_odcm_permutations_svc import RandomODCMPermutationsSvc
 
 class GlobalKFunction(object):
   ###
@@ -168,8 +168,6 @@ class GlobalKFunction(object):
         ndDesc.spatialReference.factoryCode != 0):
         parameters[11].value = ndDesc.spatialReference.factoryCode
 
-    return
-
   ###
   # If any fields are invalid, show an appropriate error message.
   ###
@@ -183,7 +181,6 @@ class GlobalKFunction(object):
         parameters[11].setErrorMessage("Output coordinate system must have a linear unit code of 'Meter.'")
       else:
         parameters[11].clearMessage()
-    return
 
   ###
   # Execute the tool.
@@ -232,23 +229,30 @@ class GlobalKFunction(object):
     else:
       cutoff = None
 
-    # Generate the ODCM permutations, including the ODCM for the observed data.
-    odcms = self.kfHelper.generateODCMPermutations("Global Analysis", points,
-      None, networkDataset, snapDist, cutoff, outNetKLoc, outRawODCMFCName,
-      numPermsDesc, outCoordSys)
-
     # The results of all the calculations end up here.
     netKCalculations = []
 
-    for odDists in odcms:
+    # Use a mutable container for the number of bands so that the below callback
+    # can write to it.  The "nonlocal" keyword not available in Python 2.x.
+    numBandsCont = [numBands]
+
+    # Callback function that does the Network K calculation on an OD cost matrix.    
+    def doNetKCalc(odDists, iteration):
       # Do the actual network k-function calculation.
-      netKCalc = NetworkKCalculation(networkLength, odDists, begDist, distInc, numBands)
+      netKCalc = NetworkKCalculation(networkLength, odDists, begDist, distInc, numBandsCont[0])
       netKCalculations.append(netKCalc.getDistanceBands())
 
       # If the user did not specifiy a number of distance bands explicitly,
       # store the number of bands.  It's computed from the observed data.
-      if numBands is None:
-        numBands = netKCalc.getNumberOfDistanceBands()
+      if numBandsCont[0] is None:
+        numBandsCont[0] = netKCalc.getNumberOfDistanceBands()
+
+    # Generate the ODCM permutations, including the ODCM for the observed data.
+    # doNetKCalc is called on each iteration.
+    randODCMPermSvc = RandomODCMPermutationsSvc()
+    randODCMPermSvc.generateODCMPermutations("Global Analysis",
+      points, points, networkDataset, snapDist, cutoff, outNetKLoc,
+      outRawODCMFCName, numPerms, outCoordSys, messages, doNetKCalc)
 
     # Write the distance bands to a table.  The 0th iteration is the observed
     # data.  Subsequent iterations are the uniform point data.
