@@ -101,25 +101,25 @@ class GlobalKFunction(object):
       datatype="GPString",
       parameterType="Required",
       direction="Output")
-    outRawODCMFCName.value = "Net_K_Raw_ODCM_Data"
+    outRawODCMFCName.value = "Global_K_Raw_ODCM_Data"
 
     # The raw data feature class (e.g. observed and random point computations).
     outRawFCName = arcpy.Parameter(
-      displayName="Raw Network-K Data Table (Raw Analysis Data)",
+      displayName="Raw Global-K Data Table (Raw Analysis Data)",
       name = "output_raw_analysis_feature_class",
       datatype="GPString",
       parameterType="Required",
       direction="Output")
-    outRawFCName.value = "Net_K_Raw_Analysis_Data"
+    outRawFCName.value = "Global_K_Raw_Analysis_Data"
 
     # The analysis feature class.
     outAnlFCName = arcpy.Parameter(
-      displayName="Network-K Summary Data (Plottable Data)",
+      displayName="Global-K Summary Data (Plottable Data)",
       name = "output_analysis_feature_class",
       datatype="GPString",
       parameterType="Required",
       direction="Output")
-    outAnlFCName.value = "Net_K_Summary_Data"
+    outAnlFCName.value = "Global_K_Summary_Data"
 
     # Confidence envelope (number of permutations).
     numPerms = arcpy.Parameter(
@@ -213,8 +213,8 @@ class GlobalKFunction(object):
     messages.addMessage("Snap distance: {0}".format(snapDist))
     messages.addMessage("Output location (database path): {0}".format(outNetKLoc))
     messages.addMessage("Raw ODCM data table: {0}".format(outRawODCMFCName))
-    messages.addMessage("Raw network-K data table (raw analysis data): {0}".format(outRawFCName))
-    messages.addMessage("Network-K summary data (plottable data): {0}".format(outAnlFCName))
+    messages.addMessage("Raw global-K data table (raw analysis data): {0}".format(outRawFCName))
+    messages.addMessage("Global-K summary data (plottable data): {0}".format(outAnlFCName))
     messages.addMessage("Number of random permutations: {0}".format(numPerms))
     messages.addMessage("Network dataset length projected coordinate system: {0}\n".format(outCoordSys.name))
 
