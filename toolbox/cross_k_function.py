@@ -1,13 +1,16 @@
 import arcpy
 import os
 import k_function_helper
+import random_odcm_permutations_svc
 
 from arcpy import env
 
 # ArcMap caching prevention.
-k_function_helper = reload(k_function_helper)
+k_function_helper            = reload(k_function_helper)
+random_odcm_permutations_svc = reload(random_odcm_permutations_svc)
 
-from k_function_helper import KFunctionHelper
+from k_function_helper            import KFunctionHelper
+from random_odcm_permutations_svc import RandomODCMPermutationsSvc
 
 class CrossKFunction(object):
   ###
@@ -231,4 +234,33 @@ class CrossKFunction(object):
     networkLength = self.kfHelper.calculateLength(networkDataset, outCoordSys)
     messages.addMessage("Total network length: {0}".format(networkLength))
 
+    # Set up a cutoff lenght for the ODCM data if possible.  This is a
+    # speed optimization.
+    if numBands is not None:
+      cutoff = numBands * distInc
+    else:
+      cutoff = None
+
+    # The results of all the calculations end up here.
+    netKCalculations = []
+
+    # Use a mutable container for the number of bands so that the below callback
+    # can write to it.  The "nonlocal" keyword not available in Python 2.x.
+    numBandsCont = [numBands]
+
+    # Callback function that does the Network K calculation on an OD cost matrix.    
+    def doNetKCalc(odDists, iteration):
+      messages.addMessage("Iteration: {0}".format(iteration))
+
+      # If the user did not specifiy a number of distance bands explicitly,
+      # store the number of bands.  It's computed from the observed data.
+      if numBandsCont[0] is None:
+        numBandsCont[0] = netKCalc.getNumberOfDistanceBands()
+
+    # Generate the ODCM permutations, including the ODCM for the observed data.
+    # doNetKCalc is called on each iteration.
+    randODCMPermSvc = RandomODCMPermutationsSvc()
+    randODCMPermSvc.generateODCMPermutations("Cross Analysis",
+      srcPoints, destPoints, networkDataset, snapDist, cutoff, outNetKLoc,
+      outRawODCMFCName, numPerms, outCoordSys, messages, doNetKCalc)
   
