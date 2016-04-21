@@ -47,6 +47,11 @@ class RandomODCMPermutationsSvc:
     if analysisType == "GLOBAL" or destPoints is None:
       destPoints = srcPoints
 
+    # Count the number of crashes (there may be fewer points in the ODCM, but it's the total
+    # number of crashes that is needed).
+    numDests = self.kfHelper.countNumberOfFeatures(os.path.join(outLoc, destPoints))
+    messages.addMessage("Number of crashes: {0}".format(numDests))
+
     # Make the observed ODCM and calculate the distance between each set of
     # points.  If a cross analysis is selected, find the distance between the
     # source and destination points.  Otherwise there is only one set of points
@@ -54,11 +59,6 @@ class RandomODCMPermutationsSvc:
     self._writeODCMData(odDists, outLoc, outFC, 0)
     callback(odDists, 0)
     messages.addMessage("Iteration 0 (observed) complete.")
-
-    # Count the number of unique destinations in the resulting ODCM.  These are
-    # the "crash" points.  During each permutation below, this number of random
-    # points will be created on the network.
-    numDests = self.kfHelper.countNumberOfDestinations(odDists)
 
     # Generate the OD Cost matrix permutations.
     kfTimer = KFunctionTimer(numPerms)

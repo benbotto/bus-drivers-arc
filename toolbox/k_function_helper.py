@@ -93,11 +93,9 @@ class KFunctionHelper(object):
     return randPtsFullPath
 
   ###
-  # Calculate the number of unique destination points in the OD cost matrix.
-  # @param odDists An array of objects containing a DestinationID key.
+  # Calculate the number features in a feature class.
+  # @param fcPath The full path to a feature class.
   ###
-  def countNumberOfDestinations(self, odDists):
-    pointLookup = {}
-    for odDist in odDists:
-      pointLookup[odDist["DestinationID"]] = True
-    return len(pointLookup.keys())
+  def countNumberOfFeatures(self, fcPath):
+    result = arcpy.GetCount_management(fcPath)
+    return int(result.getOutput(0))
