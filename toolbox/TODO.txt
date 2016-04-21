@@ -1,1 +1,1 @@
-Number of points needs to be the number of points in the inputted data, not the count of destinations.
+Make a global_k_function_svc.  cross_k_function service can extend this and specialize a few things.
