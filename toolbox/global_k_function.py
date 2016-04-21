@@ -222,6 +222,9 @@ class GlobalKFunction(object):
     networkLength = self.kfHelper.calculateLength(networkDataset, outCoordSys)
     messages.addMessage("Total network length: {0}".format(networkLength))
 
+    # Count the number of crashes.
+    numPoints = self.kfHelper.countNumberOfFeatures(os.path.join(outNetKLoc, points))
+
     # Set up a cutoff lenght for the ODCM data if possible.  This is a
     # speed optimization.
     if numBands is not None:
@@ -239,7 +242,7 @@ class GlobalKFunction(object):
     # Callback function that does the Network K calculation on an OD cost matrix.    
     def doNetKCalc(odDists, iteration):
       # Do the actual network k-function calculation.
-      netKCalc = NetworkKCalculation(networkLength, odDists, begDist, distInc, numBandsCont[0])
+      netKCalc = NetworkKCalculation(networkLength, numPoints, odDists, begDist, distInc, numBandsCont[0])
       netKCalculations.append(netKCalc.getDistanceBands())
 
       # If the user did not specifiy a number of distance bands explicitly,

@@ -9,26 +9,25 @@ class NetworkKCalculation:
   ###
   # Initialize the calculator.
   # @param netLen The length of the network.
+  # @param numPoints The total number of points in the observed data.
   # @param odDists An array of origins and destinations from an OD cost
   #        matrix.  Each should have keys Total_Length, OriginID, DestinationID.
   # @param begDist The distance to begin calculating (the first distance band).
   # @param distInc The amount to increment each distance band.
   # @param numBands The number of distance bands (optional).
   ###
-  def __init__(self, netLen, odDists, begDist, distInc, numBands):
-    self._netLen   = netLen
-    self._odDists  = sorted(odDists, key=lambda odDist: odDist["Total_Length"])
-    self._begDist  = begDist
-    self._distInc  = distInc
-    self._numBands = numBands
+  def __init__(self, netLen, numPoints, odDists, begDist, distInc, numBands):
+    self._netLen    = netLen
+    self._numPoints = numPoints
+    self._odDists   = sorted(odDists, key=lambda odDist: odDist["Total_Length"])
+    self._begDist   = begDist
+    self._distInc   = distInc
+    self._numBands  = numBands
 
     # If the user doesn't specify the number of distance bands then calculate it.
     if self._numBands is None:
       maxLen         = self._odDists[-1]["Total_Length"]
       self._numBands = int(math.ceil((maxLen - self._begDist) / self._distInc + 1))
-
-    # Calculate the total number of points.
-    self._numPoints = self.countNumberOfPoints()
 
     # Calculate the overall point-network density.
     self._pnDensity = self.calculatePointNetworkDensity()
@@ -58,13 +57,6 @@ class NetworkKCalculation:
   # Get the number of increments, or none.
   def getNumberOfDistanceBands(self):
     return self._numBands
-
-  # Calculate the number of points in the network.
-  def countNumberOfPoints(self):
-    pointLookup = {}
-    for odDist in self.getDistances():
-      pointLookup[odDist["OriginID"]] = True
-    return len(pointLookup.keys())
 
   # Get the number of points in the network.
   def getNumberOfPoints(self):
