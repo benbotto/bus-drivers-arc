@@ -1,8 +1,9 @@
 import arcpy
 import os
-import k_function_helper
 import cross_k_calculation
+import k_function_helper
 import random_odcm_permutations_svc
+import global_k_function_svc
 
 from arcpy import env
 
@@ -10,10 +11,12 @@ from arcpy import env
 cross_k_calculation          = reload(cross_k_calculation)
 k_function_helper            = reload(k_function_helper)
 random_odcm_permutations_svc = reload(random_odcm_permutations_svc)
+global_k_function_svc        = reload(global_k_function_svc)
 
 from cross_k_calculation          import CrossKCalculation
 from k_function_helper            import KFunctionHelper
 from random_odcm_permutations_svc import RandomODCMPermutationsSvc
+from global_k_function_svc        import GlobalKFunctionSvc
 
 class CrossKFunction(object):
   ###
@@ -206,6 +209,7 @@ class CrossKFunction(object):
     numPerms         = self.kfHelper.getPermutationSelection()[parameters[11].valueAsText]
     outCoordSys      = parameters[12].value
     ndDesc           = arcpy.Describe(networkDataset)
+    gkfSvc           = GlobalKFunctionSvc()
 
     # Refer to the note in the NetworkDatasetLength tool.
     if outCoordSys is None:
@@ -225,14 +229,6 @@ class CrossKFunction(object):
     messages.addMessage("Number of random permutations: {0}".format(numPerms))
     messages.addMessage("Network dataset length projected coordinate system: {0}\n".format(outCoordSys.name))
 
-    # The Network Dataset Length and Generate Random Points tools are used.
-    # Import the toolbox.  It's is in the Crash Analysis Toolbox (this tool's
-    # toolbox).
-    toolboxPath     = os.path.dirname(os.path.abspath(__file__))
-    toolboxName     = "Crash Analysis Toolbox.pyt"
-    toolboxFullPath = os.path.join(toolboxPath, toolboxName)
-    arcpy.ImportToolbox(toolboxFullPath)
-
     # Calculate the length of the network.
     networkLength = self.kfHelper.calculateLength(networkDataset, outCoordSys)
     messages.addMessage("Total network length: {0}".format(networkLength))
@@ -240,12 +236,8 @@ class CrossKFunction(object):
     # Count the number of crashes.
     numDests = self.kfHelper.countNumberOfFeatures(os.path.join(outNetKLoc, destPoints))
 
-    # Set up a cutoff lenght for the ODCM data if possible.  This is a
-    # speed optimization.
-    if numBands is not None:
-      cutoff = numBands * distInc
-    else:
-      cutoff = None
+    # Set up a cutoff lenght for the ODCM data if possible.  (Optimization.)
+    cutoff = gkfSvc.getCutoff(numBands, distInc, begDist)
 
     # The results of all the calculations end up here.
     netKCalculations = []
@@ -272,5 +264,10 @@ class CrossKFunction(object):
       srcPoints, destPoints, networkDataset, snapDist, cutoff, outNetKLoc,
       outRawODCMFCName, numPerms, outCoordSys, messages, doNetKCalc)
 
-    messages.addMessage("Calcs: {0}".format(netKCalculations))
-  
+    # Store the raw analysis data.
+    messages.addMessage("Writing raw analysis data.")
+    gkfSvc.writeRawAnalysisData(outNetKLoc, outRawFCName, netKCalculations)
+
+    # Analyze the data and store the results.
+    messages.addMessage("Analyzing data.")
+    gkfSvc.writeAnalysisSummaryData(numPerms, netKCalculations, outNetKLoc, outAnlFCName)

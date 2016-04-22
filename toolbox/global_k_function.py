@@ -199,7 +199,12 @@ class GlobalKFunction(object):
     numPermsDesc     = parameters[10].valueAsText
     numPerms         = self.kfHelper.getPermutationSelection()[numPermsDesc]
     outCoordSys      = parameters[11].value
+    ndDesc           = arcpy.Describe(networkDataset)
     gkfSvc           = GlobalKFunctionSvc()
+
+    # Refer to the note in the NetworkDatasetLength tool.
+    if outCoordSys is None:
+      outCoordSys = ndDesc.spatialReference
 
     messages.addMessage("\nOrigin points: {0}".format(points))
     messages.addMessage("Network dataset: {0}".format(networkDataset))
@@ -212,8 +217,7 @@ class GlobalKFunction(object):
     messages.addMessage("Raw global-K data table (raw analysis data): {0}".format(outRawFCName))
     messages.addMessage("Global-K summary data (plottable data): {0}".format(outAnlFCName))
     messages.addMessage("Number of random permutations: {0}".format(numPerms))
-    messages.addMessage("Network dataset length projected coordinate system: {0}\n"
-      .format(outCoordSys.name if outCoordSys is not None else "None"))
+    messages.addMessage("Network dataset length projected coordinate system: {0}\n".format(outCoordSys.name))
 
     # Calculate the length of the network.
     networkLength = self.kfHelper.calculateLength(networkDataset, outCoordSys)
@@ -224,7 +228,6 @@ class GlobalKFunction(object):
 
     # Set up a cutoff lenght for the ODCM data if possible.  (Optimization.)
     cutoff = gkfSvc.getCutoff(numBands, distInc, begDist)
-    messages.addMessage("Cutoff: {0}".format(cutoff))
 
     # The results of all the calculations end up here.
     netKCalculations = []
