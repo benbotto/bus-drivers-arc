@@ -1,22 +1,22 @@
 import arcpy
 import os
 import network_k_calculation
-import network_k_analysis
 import k_function_helper
 import random_odcm_permutations_svc
+import global_k_function_svc
 
 from arcpy import env
 
 # ArcMap caching prevention.
 network_k_calculation        = reload(network_k_calculation)
-network_k_analysis           = reload(network_k_analysis)
 k_function_helper            = reload(k_function_helper)
 random_odcm_permutations_svc = reload(random_odcm_permutations_svc)
+global_k_function_svc        = reload(global_k_function_svc)
 
 from network_k_calculation        import NetworkKCalculation
-from network_k_analysis           import NetworkKAnalysis
 from k_function_helper            import KFunctionHelper
 from random_odcm_permutations_svc import RandomODCMPermutationsSvc
+from global_k_function_svc        import GlobalKFunctionSvc
 
 class GlobalKFunction(object):
   ###
@@ -199,11 +199,7 @@ class GlobalKFunction(object):
     numPermsDesc     = parameters[10].valueAsText
     numPerms         = self.kfHelper.getPermutationSelection()[numPermsDesc]
     outCoordSys      = parameters[11].value
-    ndDesc           = arcpy.Describe(networkDataset)
-
-    # Refer to the note in the NetworkDatasetLength tool.
-    if outCoordSys is None:
-      outCoordSys = ndDesc.spatialReference
+    gkfSvc           = GlobalKFunctionSvc()
 
     messages.addMessage("\nOrigin points: {0}".format(points))
     messages.addMessage("Network dataset: {0}".format(networkDataset))
@@ -216,7 +212,8 @@ class GlobalKFunction(object):
     messages.addMessage("Raw global-K data table (raw analysis data): {0}".format(outRawFCName))
     messages.addMessage("Global-K summary data (plottable data): {0}".format(outAnlFCName))
     messages.addMessage("Number of random permutations: {0}".format(numPerms))
-    messages.addMessage("Network dataset length projected coordinate system: {0}\n".format(outCoordSys.name))
+    messages.addMessage("Network dataset length projected coordinate system: {0}\n"
+      .format(outCoordSys.name if outCoordSys is not None else "None"))
 
     # Calculate the length of the network.
     networkLength = self.kfHelper.calculateLength(networkDataset, outCoordSys)
@@ -225,12 +222,9 @@ class GlobalKFunction(object):
     # Count the number of crashes.
     numPoints = self.kfHelper.countNumberOfFeatures(os.path.join(outNetKLoc, points))
 
-    # Set up a cutoff lenght for the ODCM data if possible.  This is a
-    # speed optimization.
-    if numBands is not None:
-      cutoff = numBands * distInc
-    else:
-      cutoff = None
+    # Set up a cutoff lenght for the ODCM data if possible.  (Optimization.)
+    cutoff = gkfSvc.getCutoff(numBands, distInc, begDist)
+    messages.addMessage("Cutoff: {0}".format(cutoff))
 
     # The results of all the calculations end up here.
     netKCalculations = []
@@ -257,50 +251,10 @@ class GlobalKFunction(object):
       points, points, networkDataset, snapDist, cutoff, outNetKLoc,
       outRawODCMFCName, numPerms, outCoordSys, messages, doNetKCalc)
 
-    # Write the distance bands to a table.  The 0th iteration is the observed
-    # data.  Subsequent iterations are the uniform point data.
-    messages.addMessage("Writing raw data.")
-    outRawFCFullPath = os.path.join(outNetKLoc, outRawFCName)
-    arcpy.CreateTable_management(outNetKLoc, outRawFCName)
+    # Store the raw analysis data.
+    messages.addMessage("Writing raw analysis data.")
+    gkfSvc.writeRawAnalysisData(outNetKLoc, outRawFCName, netKCalculations)
 
-    arcpy.AddField_management(outRawFCFullPath, "Iteration_Number", "LONG")
-    arcpy.AddField_management(outRawFCFullPath, "Distance_Band",    "DOUBLE")
-    arcpy.AddField_management(outRawFCFullPath, "Point_Count",      "DOUBLE")
-    arcpy.AddField_management(outRawFCFullPath, "K_Function",       "DOUBLE")
-
-    with arcpy.da.InsertCursor(outRawFCFullPath,
-      ["Iteration_Number", "Distance_Band", "Point_Count", "K_Function"]) as cursor:
-      for netKNum in range(0, len(netKCalculations)):
-        for distBand in netKCalculations[netKNum]:
-          cursor.insertRow([netKNum, distBand["distanceBand"], distBand["count"], distBand["KFunction"]])
-
-    # Analyze the network k results (generate plottable output).
-    # No confidence intervals are computed if there are no random permutations.
+    # Analyze the data and store the results.
     messages.addMessage("Analyzing data.")
-    if numPerms != 0:
-      netKAn_95 = NetworkKAnalysis(.95, netKCalculations)
-      netKAn_90 = NetworkKAnalysis(.90, netKCalculations)
-
-    # Write the analysis data to a table.
-    messages.addMessage("Writing analysis data.")
-    outAnlFCFullPath = os.path.join(outNetKLoc, outAnlFCName)
-    arcpy.CreateTable_management(outNetKLoc, outAnlFCName)
-    arcpy.AddField_management(outAnlFCFullPath, "Description",   "TEXT")
-    arcpy.AddField_management(outAnlFCFullPath, "Distance_Band", "DOUBLE")
-    arcpy.AddField_management(outAnlFCFullPath, "Point_Count",   "DOUBLE")
-    arcpy.AddField_management(outAnlFCFullPath, "K_Function",    "DOUBLE")
-
-    with arcpy.da.InsertCursor(outAnlFCFullPath,
-      ["Description", "Distance_Band", "Point_Count", "K_Function"]) as cursor:
-      self.writeAnalysis(cursor, netKCalculations[0], "Observed")
-
-      if numPerms != 0:
-        self.writeAnalysis(cursor, netKAn_95.getLowerConfidenceEnvelope(), "2.5% Lower Bound")
-        self.writeAnalysis(cursor, netKAn_95.getUpperConfidenceEnvelope(), "2.5% Upper Bound")
-        self.writeAnalysis(cursor, netKAn_90.getLowerConfidenceEnvelope(), "5% Lower Bound")
-        self.writeAnalysis(cursor, netKAn_90.getUpperConfidenceEnvelope(), "5% Upper Bound")
-
-  # Write the analysis data in distBands using cursor.
-  def writeAnalysis(self, cursor, distBands, description):
-    for distBand in distBands:
-      cursor.insertRow([description, distBand["distanceBand"], distBand["count"], distBand["KFunction"]])
+    gkfSvc.writeAnalysisSummaryData(numPerms, netKCalculations, outNetKLoc, outAnlFCName)
