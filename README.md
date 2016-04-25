@@ -19,9 +19,9 @@ Also, Each of the tools support have documentation built into the xml metadata w
 * ArcGIS Desktop 10.2+ 
 * Python 2.7
 * Some tools require additional packages   
-    * The ArcGIS Editor for OSM (OpenStreetMap) - ArcGIS extension required for the Crash Network Density and Network K Analysis Tools, specifically to be able use open-source network data of streets within the toolbox. For installation, follow the link below (urls subject to change): 
-      *10.2.x - http://www.arcgis.com/home/item.html?id=16970017f81349548d0a9eead0ebba39 
-      *10.3.x - http://www.arcgis.com/home/item.html?id=75716d933f1c40a784243198e0dc11a1 
+    * The ArcGIS Editor for OSM (OpenStreetMap) - ArcGIS extension required for the Crash Network Density and Network K Analysis Tools, specifically to be able use open-source network data of streets within the toolbox. For installation, follow the link below (urls subject to change):  <br />
+      * 10.2.x - http://www.arcgis.com/home/item.html?id=16970017f81349548d0a9eead0ebba39 
+      * 10.3.x - http://www.arcgis.com/home/item.html?id=75716d933f1c40a784243198e0dc11a1 
 
 ## Additional Documentation
 * **Crash Analysis Toolbox - As Built Design:** Developer Maintenence Manual
