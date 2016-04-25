@@ -29,20 +29,20 @@ Also, Each of the tools support have documentation built into the xml metadata w
 * **Crash Analysis Toolbox - User Manual:** User Manual
 
 ## Credits
-* **Project Sponsor**: 
- Ghazan Khan, Ph.D 
- Assistant Professor, Transportation Engineering
- Department of Civil Engineering
- CALIFORNIA STATE UNIVERSITY, SACRAMENTO
- 6000 J Street, Sacramento, CA 95819-6029
+* **Project Sponsor**:  <br />
+ Ghazan Khan, Ph.D <br />
+ Assistant Professor, Transportation Engineering <br />
+ Department of Civil Engineering <br />
+ CALIFORNIA STATE UNIVERSITY, SACRAMENTO <br />
+ 6000 J Street, Sacramento, CA 95819-6029 <br />
 
-* **Development Team**:
-"Bus Drivers" - CSUS Computer Science Senior Project Team
- CSC 190/191   - Fall 2015/Spring 2016 
-  Ben Botto
-  Kian Faroughi
-  Kenneth Spence
-  Victor Zepeda
-  Austin Purcell
-  Kevin Choe
+* **Development Team**: <br />
+"Bus Drivers" - CSUS Computer Science Senior Project Team <br />
+ CSC 190/191   - Fall 2015/Spring 2016  <br />
+  Ben Botto <br />
+  Kian Faroughi <br />
+  Kenneth Spence <br />
+  Victor Zepeda <br />
+  Austin Purcell <br />
+  Kevin Choe <br />
 
