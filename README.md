@@ -30,19 +30,19 @@ Also, Each of the tools support have documentation built into the xml metadata w
 
 ## Credits
 * **Project Sponsor**: 
-  * Ghazan Khan, Ph.D 
-  * Assistant Professor, Transportation Engineering
-  * Department of Civil Engineering
-  * CALIFORNIA STATE UNIVERSITY, SACRAMENTO
-  * 6000 J Street, Sacramento, CA 95819-6029
+ Ghazan Khan, Ph.D 
+ Assistant Professor, Transportation Engineering
+ Department of Civil Engineering
+ CALIFORNIA STATE UNIVERSITY, SACRAMENTO
+ 6000 J Street, Sacramento, CA 95819-6029
 
 * **Development Team**:
-  * "Bus Drivers" - CSUS Computer Science Senior Project Team
-  * CSC 190/191   - Fall 2015/Spring 2016 
-    * Ben Botto
-    * Kian Faroughi
-    * Kenneth Spence
-    * Victor Zepeda
-    * Austin Purcell
-    * Kevin Choe
+"Bus Drivers" - CSUS Computer Science Senior Project Team
+ CSC 190/191   - Fall 2015/Spring 2016 
+  Ben Botto
+  Kian Faroughi
+  Kenneth Spence
+  Victor Zepeda
+  Austin Purcell
+  Kevin Choe
 
