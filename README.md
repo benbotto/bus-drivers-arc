@@ -15,7 +15,7 @@ Also, Each of the tools support have documentation built into the xml metadata w
   * **Network K Analysis**
   * **Cross K Function**
 
-## Requiremed Environment
+## Required Environment
 * ArcGIS Desktop 10.2+ 
 * Python 2.7
 * Some tools require additional packages   
