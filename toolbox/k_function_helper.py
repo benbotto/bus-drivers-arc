@@ -99,3 +99,36 @@ class KFunctionHelper(object):
   def countNumberOfFeatures(self, fcPath):
     result = arcpy.GetCount_management(fcPath)
     return int(result.getOutput(0))
+
+  ###
+  # Get the full path of a network datasource's edge source (the first source).
+  # @param networkDataset A network dataset.
+  ###
+  def getEdgeSourcePath(self, networkDataset):
+    ndDesc = arcpy.Describe(networkDataset)
+    return os.path.join(ndDesc.path, ndDesc.edgeSources[0].name)
+
+  ###
+  # Get the number of edge sources in a network dataset.
+  # @param networkDataset A network dataset.
+  ###
+  def getNumEdgeSources(self, networkDataset):
+    ndDesc      = arcpy.Describe(networkDataset)
+    edgeSources = ndDesc.edgeSources
+    return len(edgeSources)
+
+  ###
+  # Get an array of field names from a network dataset's first edge source.
+  # Only numeric fields are considered.
+  # @param networkDataset A network dataset.
+  ###
+  def getEdgeSourceFieldNames(self, networkDataset):
+    esFullPath  = self.getEdgeSourcePath(networkDataset)
+    esDesc      = arcpy.Describe(esFullPath)
+    fieldsNames = []
+
+    for field in esDesc.fields:
+      if field.type == "Integer" or field.type == "SmallInteger" or field.type == "Double" or field.type == "Single":
+        fieldsNames.append(field.name)
+
+    return fieldsNames

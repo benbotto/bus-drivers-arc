@@ -1,5 +1,10 @@
 import arcpy
 import os
+import k_function_helper
+
+# ArcMap caching prevention.
+k_function_helper = reload(k_function_helper)
+from k_function_helper import KFunctionHelper
 
 class NetworkDatasetRandomPoints(object):
   ###
@@ -11,6 +16,7 @@ class NetworkDatasetRandomPoints(object):
     self.canRunInBackground = False
 
     arcpy.env.overwriteOutput = True
+    self.kfHelper = KFunctionHelper()
 
   ###
   # Get input from the users.
@@ -92,16 +98,7 @@ class NetworkDatasetRandomPoints(object):
 
     # Set the source of the fields (the network dataset).
     if useField == True and networkDataset is not None:
-      ndDesc      = arcpy.Describe(networkDataset)
-      esFullPath  = os.path.join(ndDesc.path, ndDesc.edgeSources[0].name)
-      esDesc      = arcpy.Describe(esFullPath)
-      fieldsNames = []
-
-      for field in esDesc.fields:
-        if field.type == "Integer" or field.type == "SmallInteger" or field.type == "Double" or field.type == "Single":
-          fieldsNames.append(field.name)
-
-      parameters[5].filter.list = fieldsNames
+      parameters[5].filter.list = self.kfHelper.getEdgeSourceFieldNames(networkDataset)
 
   ###
   # If any fields are invalid, show an appropriate error message.
@@ -110,7 +107,7 @@ class NetworkDatasetRandomPoints(object):
     networkDataset     = parameters[0].value
     useField           = parameters[3].value
     numPoints          = parameters[4].value
-    numPointsFieldName = parameters[4].value
+    numPointsFieldName = parameters[5].value
 
     if numPoints is not None:
       if numPoints <= 0:
@@ -118,25 +115,23 @@ class NetworkDatasetRandomPoints(object):
       else:
         parameters[2].clearMessage()
 
-    # Check that there is a single edge source if a field is used.
-    if useField and networkDataset is not None:
-      ndDesc      = arcpy.Describe(networkDataset)
-      edgeSources = ndDesc.edgeSources
-
-      if len(edgeSources) != 1:
-        parameters[5].setErrorMessage("If using a field, only a single edge source is supported.")
+    if useField:
+      if numPointsFieldName is None:
+        parameters[5].setErrorMessage("Number of points field is required.")
       else:
         parameters[5].clearMessage()
 
-    if not useField and numPoints is None:
-      parameters[4].setErrorMessage("Number of points is required.")
+      # Check that there is a single edge source if a field is used.
+      if networkDataset is not None:
+        if self.kfHelper.getNumEdgeSources(networkDataset) != 1:
+          parameters[5].setErrorMessage("If using a field, only a single edge source is supported.")
+        else:
+          parameters[5].clearMessage()
     else:
-      parameters[4].clearMessage()
-
-    if useField and numPointsFieldName is None:
-      parameters[5].setErrorMessage("Number of points field is required.")
-    else:
-      parameters[5].clearMessage()
+      if numPoints is None:
+        parameters[4].setErrorMessage("Number of points is required.")
+      else:
+        parameters[4].clearMessage()
 
   ###
   # Execute the tool.
@@ -161,7 +156,7 @@ class NetworkDatasetRandomPoints(object):
 
     if useField:
       # Use the single edge source for the constraining feature.
-      esFullPath = os.path.join(ndDesc.path, ndDesc.edgeSources[0].name)
+      esFullPath = self.kfHelper.getEdgeSourcePath(networkDataset)
 
       # Create a series of random points on the new line class.
       messages.addMessage("Creating point feature class.  Name: {0} Path: {1}"
