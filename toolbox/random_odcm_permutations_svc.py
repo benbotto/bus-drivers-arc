@@ -31,13 +31,15 @@ class RandomODCMPermutationsSvc:
   # @param outFC The name of the feature class in outLoc where the ODCM data will be written.
   # @param numPerms The number of permutations (string representation).
   # @param outCoordSys The coordinate system to project the points into (optional).
+  # @param numPointsFieldName The optional name of a field in the network dataset's edge source
+  #        from which the number of random points should be derived.
   # @param messages A messages instances with addMessage() implemented (for debug output).
   # @param callback A callback function(odDists, iteration) called on each iteration
   #        with the current OD cost matrix.
   ###
   def generateODCMPermutations(self, analysisType, srcPoints, destPoints,
     networkDataset, snapDist, cutoff, outLoc, outFC, numPerms, outCoordSys,
-    messages, callback = None):
+    numPointsFieldName, messages, callback = None):
     # Default no-op for the callback.
     if callback is None:
       callback = lambda odDists, iteration: None
@@ -63,7 +65,10 @@ class RandomODCMPermutationsSvc:
     # Generate the OD Cost matrix permutations.
     kfTimer = KFunctionTimer(numPerms)
     for i in range(1, numPerms + 1):
-      randPoints = self.kfHelper.generateRandomPoints(networkDataset, outCoordSys, numDests)
+      if numPointsFieldName:
+        randPoints = self.kfHelper.generateRandomPoints(networkDataset, outCoordSys, None, numPointsFieldName)
+      else:
+        randPoints = self.kfHelper.generateRandomPoints(networkDataset, outCoordSys, numDests, None)
 
       # See the note above: Either find the distance from the source points to the random points,
       # or the distance between the random points.

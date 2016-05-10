@@ -79,16 +79,25 @@ class KFunctionHelper(object):
   # @param networkDataset A network dataset which the points are on.
   # @param outCoordSys The output coordinate system.  Expected to be projected.
   # @param numPoints The number of points to add.
+  # @param numPointsFieldName The name of a field in the network dataset's edge
+  #        sources from which the number of points should be derived.
   ###
-  def generateRandomPoints(self, networkDataset, outCoordSys, numPoints):
+  def generateRandomPoints(self, networkDataset, outCoordSys, numPoints, numPointsFieldName):
     ndDesc = arcpy.Describe(networkDataset)
     wsPath = arcpy.env.workspace
 
     randPtsFCName   = "TEMP_RANDOM_POINTS_{0}".format(ndDesc.baseName)
     randPtsFullPath = os.path.join(wsPath, randPtsFCName)
     self._importCAToolbox()
-    arcpy.NetworkDatasetRandomPoints_crashAnalysis(network_dataset=networkDataset,
-      out_location=wsPath, output_point_feature_class=randPtsFCName, num_points=numPoints)
+
+    if numPointsFieldName:
+      arcpy.NetworkDatasetRandomPoints_crashAnalysis(network_dataset=networkDataset,
+        out_location=wsPath, output_point_feature_class=randPtsFCName, use_field=True,
+        num_points_field=numPointsFieldName)
+    else:
+      arcpy.NetworkDatasetRandomPoints_crashAnalysis(network_dataset=networkDataset,
+        out_location=wsPath, output_point_feature_class=randPtsFCName, use_field=False,
+        num_points=numPoints)
 
     return randPtsFullPath
 

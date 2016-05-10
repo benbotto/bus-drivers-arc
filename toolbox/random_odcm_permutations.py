@@ -220,4 +220,5 @@ class RandomODCMPermutations(object):
     # The actual work is done in a reusable service.
     randODCMPermSvc = RandomODCMPermutationsSvc()
     randODCMPermSvc.generateODCMPermutations(analysisType, srcPoints, destPoints,
-      networkDataset, snapDist, cutoff, outLoc, outFC, numPerms, outCoordSys, messages)
+      networkDataset, snapDist, cutoff, outLoc, outFC, numPerms, outCoordSys,
+      numPointsFieldName, messages)
