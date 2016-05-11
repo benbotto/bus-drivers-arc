@@ -234,6 +234,7 @@ class GlobalKFunction(object):
 	messages.addMessage("Number of Points Field Name: {0}\n".format(numPointsFieldName))
 
 
+
     # Calculate the length of the network.
     networkLength = self.kfHelper.calculateLength(networkDataset, outCoordSys)
     messages.addMessage("Total network length: {0}".format(networkLength))
