@@ -139,10 +139,18 @@ class GlobalKFunction(object):
       datatype="GPSpatialReference",
       parameterType="Optional",
       direction="Input")
+	  
+    # Number of points field.
+    numPointsFieldName = arcpy.Parameter(
+      displayName="Number of Points Field",
+      name = "num_points_field",
+      datatype="GPString",
+      parameterType="Optional",
+      direction="Input")
    
     return [points, networkDataset, numBands, begDist, distInc, snapDist,
       outNetKLoc, outRawODCMFCName, outRawFCName, outAnlFCName, numPerms,
-      outCoordSys]
+      outCoordSys, numPointsFieldName]
 
   ###
   # Check if the tool is available for use.
@@ -167,6 +175,10 @@ class GlobalKFunction(object):
         ndDesc.spatialReference.linearUnitName == "Meter" and
         ndDesc.spatialReference.factoryCode != 0):
         parameters[11].value = ndDesc.spatialReference.factoryCode
+
+    # Set the source of the fields (the network dataset).
+    if networkDataset is not None:
+      parameters[13].filter.list = self.kfHelper.getEdgeSourceFieldNames(networkDataset)
 
   ###
   # If any fields are invalid, show an appropriate error message.
@@ -252,7 +264,7 @@ class GlobalKFunction(object):
     randODCMPermSvc = RandomODCMPermutationsSvc()
     randODCMPermSvc.generateODCMPermutations("Global Analysis",
       points, points, networkDataset, snapDist, cutoff, outNetKLoc,
-      outRawODCMFCName, numPerms, outCoordSys, messages, doNetKCalc)
+      outRawODCMFCName, numPerms, outCoordSys, numPointsFieldName,messages, doNetKCalc)
 
     # Store the raw analysis data.
     messages.addMessage("Writing raw analysis data.")
