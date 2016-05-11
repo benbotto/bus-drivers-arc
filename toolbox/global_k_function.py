@@ -139,7 +139,7 @@ class GlobalKFunction(object):
       datatype="GPSpatialReference",
       parameterType="Optional",
       direction="Input")
-	  
+ 
     # Number of points field.
     numPointsFieldName = arcpy.Parameter(
       displayName="Number of Points Field",
@@ -230,9 +230,8 @@ class GlobalKFunction(object):
     messages.addMessage("Raw global-K data table (raw analysis data): {0}".format(outRawFCName))
     messages.addMessage("Global-K summary data (plottable data): {0}".format(outAnlFCName))
     messages.addMessage("Number of random permutations: {0}".format(numPerms))
-    messages.addMessage("Network dataset length projected coordinate system: {0}\n".format(outCoordSys.name))
+    messages.addMessage("Network dataset length projected coordinate system: {0}".format(outCoordSys.name))
     messages.addMessage("Number of Points Field Name: {0}\n".format(numPointsFieldName))
-
 
     # Calculate the length of the network.
     networkLength = self.kfHelper.calculateLength(networkDataset, outCoordSys)
@@ -267,7 +266,7 @@ class GlobalKFunction(object):
     randODCMPermSvc = RandomODCMPermutationsSvc()
     randODCMPermSvc.generateODCMPermutations("Global Analysis",
       points, points, networkDataset, snapDist, cutoff, outNetKLoc,
-      outRawODCMFCName, numPerms, outCoordSys, numPointsFieldName,messages, doNetKCalc)
+      outRawODCMFCName, numPerms, outCoordSys, numPointsFieldName, messages, doNetKCalc)
 
     # Store the raw analysis data.
     messages.addMessage("Writing raw analysis data.")

@@ -148,7 +148,7 @@ class CrossKFunction(object):
       datatype="GPSpatialReference",
       parameterType="Optional",
       direction="Input")
-	  
+
     # Number of points field.
     numPointsFieldName = arcpy.Parameter(
       displayName="Number of Points Field",
@@ -184,7 +184,7 @@ class CrossKFunction(object):
         ndDesc.spatialReference.linearUnitName == "Meter" and
         ndDesc.spatialReference.factoryCode != 0):
         parameters[12].value = ndDesc.spatialReference.factoryCode
-		
+
     # Set the source of the fields (the network dataset).
     if networkDataset is not None:
       parameters[13].filter.list = self.kfHelper.getEdgeSourceFieldNames(networkDataset)
@@ -220,7 +220,7 @@ class CrossKFunction(object):
     outAnlFCName       = parameters[10].valueAsText
     numPerms           = self.kfHelper.getPermutationSelection()[parameters[11].valueAsText]
     outCoordSys        = parameters[12].value
-	numPointsFieldName = parameters[13].value
+    numPointsFieldName = parameters[13].value
     ndDesc             = arcpy.Describe(networkDataset)
     gkfSvc             = GlobalKFunctionSvc()
 
@@ -240,10 +240,8 @@ class CrossKFunction(object):
     messages.addMessage("Raw cross-K data table (raw analysis data): {0}".format(outRawFCName))
     messages.addMessage("Cross-K summary data (plottable data): {0}".format(outAnlFCName))
     messages.addMessage("Number of random permutations: {0}".format(numPerms))
-    messages.addMessage("Network dataset length projected coordinate system: {0}\n".format(outCoordSys.name))
+    messages.addMessage("Network dataset length projected coordinate system: {0}".format(outCoordSys.name))
     messages.addMessage("Number of Points Field Name: {0}\n".format(numPointsFieldName))
-
-
 
     # Calculate the length of the network.
     networkLength = self.kfHelper.calculateLength(networkDataset, outCoordSys)
