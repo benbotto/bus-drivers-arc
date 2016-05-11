@@ -9,10 +9,10 @@ Each of the tools are located within their own python script (as well as helper 
 Also, Each of the tools support have documentation built into the xml metadata which show in the ArcMap User Interface "Item Descriptions".  To see them, go to the ArcCatalog, then right click on a python tool and select “Item Description”. A new window will open, describing the tool. These "self-documenting" item descriptions are maintained in the corresponding tools .xml file in the "toolbox" folder. These files can be edited in two ways, through the xml file or through the ArcCatalog UI (See Section 4 - Tools in the "As Built Design - Crash Analysis Toolbox"). 
 
 ## Features
-* The Crash Analysis toolbox has 4 major tools in the "toolbox" folder (refer to the As Built Design - Crash Analysis Toolbox document for details on each tool as they have  background information of each tool as well as expected output):
+* The Crash Analysis toolbox has 4 major tools in the "toolbox" folder (refer to the As Built Design - Crash Analysis Toolbox document for details on each tool as they have background information of each tool as well as expected output):
   * **Crash Radius Density**
   * **Crash Network Density**
-  * **Network K Analysis**
+  * **Global K Functoin**
   * **Cross K Function**
 
 ## Required Environment
@@ -38,7 +38,7 @@ Also, Each of the tools support have documentation built into the xml metadata w
 
 * **Development Team**: <br />
 "Bus Drivers" - CSUS Computer Science Senior Project Team <br />
- CSC 190/191   - Fall 2015/Spring 2016  <br />
+ CSC 190/191 - Fall 2015/Spring 2016  <br />
   Ben Botto <br />
   Kian Faroughi <br />
   Kenneth Spence <br />
