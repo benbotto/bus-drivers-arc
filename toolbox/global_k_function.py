@@ -178,7 +178,7 @@ class GlobalKFunction(object):
 
     # Set the source of the fields (the network dataset).
     if networkDataset is not None:
-      parameters[13].filter.list = self.kfHelper.getEdgeSourceFieldNames(networkDataset)
+      parameters[12].filter.list = self.kfHelper.getEdgeSourceFieldNames(networkDataset)
 
   ###
   # If any fields are invalid, show an appropriate error message.
