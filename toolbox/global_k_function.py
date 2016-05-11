@@ -198,21 +198,22 @@ class GlobalKFunction(object):
   # Execute the tool.
   ###
   def execute(self, parameters, messages):
-    points           = parameters[0].valueAsText
-    networkDataset   = parameters[1].valueAsText
-    numBands         = parameters[2].value
-    begDist          = parameters[3].value
-    distInc          = parameters[4].value
-    snapDist         = parameters[5].value
-    outNetKLoc       = parameters[6].valueAsText
-    outRawODCMFCName = parameters[7].valueAsText
-    outRawFCName     = parameters[8].valueAsText
-    outAnlFCName     = parameters[9].valueAsText
-    numPermsDesc     = parameters[10].valueAsText
-    numPerms         = self.kfHelper.getPermutationSelection()[numPermsDesc]
-    outCoordSys      = parameters[11].value
-    ndDesc           = arcpy.Describe(networkDataset)
-    gkfSvc           = GlobalKFunctionSvc()
+    points             = parameters[0].valueAsText
+    networkDataset     = parameters[1].valueAsText
+    numBands           = parameters[2].value
+    begDist            = parameters[3].value
+    distInc            = parameters[4].value
+    snapDist           = parameters[5].value
+    outNetKLoc         = parameters[6].valueAsText
+    outRawODCMFCName   = parameters[7].valueAsText
+    outRawFCName       = parameters[8].valueAsText
+    outAnlFCName       = parameters[9].valueAsText
+    numPermsDesc       = parameters[10].valueAsText
+    numPerms           = self.kfHelper.getPermutationSelection()[numPermsDesc]
+    outCoordSys        = parameters[11].value
+    numPointsFieldName = parameters[12].value
+    ndDesc             = arcpy.Describe(networkDataset)
+    gkfSvc             = GlobalKFunctionSvc()
 
     # Refer to the note in the NetworkDatasetLength tool.
     if outCoordSys is None:
@@ -230,6 +231,8 @@ class GlobalKFunction(object):
     messages.addMessage("Global-K summary data (plottable data): {0}".format(outAnlFCName))
     messages.addMessage("Number of random permutations: {0}".format(numPerms))
     messages.addMessage("Network dataset length projected coordinate system: {0}\n".format(outCoordSys.name))
+	messages.addMessage("Number of Points Field Name: {0}\n".format(numPointsFieldName))
+
 
     # Calculate the length of the network.
     networkLength = self.kfHelper.calculateLength(networkDataset, outCoordSys)

@@ -207,21 +207,22 @@ class CrossKFunction(object):
   # Execute the tool.
   ###
   def execute(self, parameters, messages):
-    srcPoints        = parameters[0].valueAsText
-    destPoints       = parameters[1].valueAsText
-    networkDataset   = parameters[2].valueAsText
-    numBands         = parameters[3].value
-    begDist          = parameters[4].value
-    distInc          = parameters[5].value
-    snapDist         = parameters[6].value
-    outNetKLoc       = parameters[7].valueAsText
-    outRawODCMFCName = parameters[8].valueAsText
-    outRawFCName     = parameters[9].valueAsText
-    outAnlFCName     = parameters[10].valueAsText
-    numPerms         = self.kfHelper.getPermutationSelection()[parameters[11].valueAsText]
-    outCoordSys      = parameters[12].value
-    ndDesc           = arcpy.Describe(networkDataset)
-    gkfSvc           = GlobalKFunctionSvc()
+    srcPoints          = parameters[0].valueAsText
+    destPoints         = parameters[1].valueAsText
+    networkDataset     = parameters[2].valueAsText
+    numBands           = parameters[3].value
+    begDist            = parameters[4].value
+    distInc            = parameters[5].value
+    snapDist           = parameters[6].value
+    outNetKLoc         = parameters[7].valueAsText
+    outRawODCMFCName   = parameters[8].valueAsText
+    outRawFCName       = parameters[9].valueAsText
+    outAnlFCName       = parameters[10].valueAsText
+    numPerms           = self.kfHelper.getPermutationSelection()[parameters[11].valueAsText]
+    outCoordSys        = parameters[12].value
+	numPointsFieldName = parameters[13].value
+    ndDesc             = arcpy.Describe(networkDataset)
+    gkfSvc             = GlobalKFunctionSvc()
 
     # Refer to the note in the NetworkDatasetLength tool.
     if outCoordSys is None:
@@ -240,6 +241,8 @@ class CrossKFunction(object):
     messages.addMessage("Cross-K summary data (plottable data): {0}".format(outAnlFCName))
     messages.addMessage("Number of random permutations: {0}".format(numPerms))
     messages.addMessage("Network dataset length projected coordinate system: {0}\n".format(outCoordSys.name))
+    messages.addMessage("Number of Points Field Name: {0}\n".format(numPointsFieldName))
+
 
     # Calculate the length of the network.
     networkLength = self.kfHelper.calculateLength(networkDataset, outCoordSys)
