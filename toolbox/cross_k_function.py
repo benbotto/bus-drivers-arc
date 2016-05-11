@@ -241,7 +241,7 @@ class CrossKFunction(object):
     messages.addMessage("Cross-K summary data (plottable data): {0}".format(outAnlFCName))
     messages.addMessage("Number of random permutations: {0}".format(numPerms))
     messages.addMessage("Network dataset length projected coordinate system: {0}\n".format(outCoordSys.name))
-	messages.addMessage("Number of Points Field Name: {0}\n".format(numPointsFieldName))
+    messages.addMessage("Number of Points Field Name: {0}\n".format(numPointsFieldName))
 
 
 
