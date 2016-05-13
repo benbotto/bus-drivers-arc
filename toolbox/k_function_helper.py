@@ -79,16 +79,25 @@ class KFunctionHelper(object):
   # @param networkDataset A network dataset which the points are on.
   # @param outCoordSys The output coordinate system.  Expected to be projected.
   # @param numPoints The number of points to add.
+  # @param numPointsFieldName The name of a field in the network dataset's edge
+  #        sources from which the number of points should be derived.
   ###
-  def generateRandomPoints(self, networkDataset, outCoordSys, numPoints):
+  def generateRandomPoints(self, networkDataset, outCoordSys, numPoints, numPointsFieldName):
     ndDesc = arcpy.Describe(networkDataset)
     wsPath = arcpy.env.workspace
 
     randPtsFCName   = "TEMP_RANDOM_POINTS_{0}".format(ndDesc.baseName)
     randPtsFullPath = os.path.join(wsPath, randPtsFCName)
     self._importCAToolbox()
-    arcpy.NetworkDatasetRandomPoints_crashAnalysis(network_dataset=networkDataset,
-      out_location=wsPath, output_point_feature_class=randPtsFCName, num_points=numPoints)
+
+    if numPointsFieldName:
+      arcpy.NetworkDatasetRandomPoints_crashAnalysis(network_dataset=networkDataset,
+        out_location=wsPath, output_point_feature_class=randPtsFCName, use_field=True,
+        num_points_field=numPointsFieldName)
+    else:
+      arcpy.NetworkDatasetRandomPoints_crashAnalysis(network_dataset=networkDataset,
+        out_location=wsPath, output_point_feature_class=randPtsFCName, use_field=False,
+        num_points=numPoints)
 
     return randPtsFullPath
 
@@ -99,3 +108,36 @@ class KFunctionHelper(object):
   def countNumberOfFeatures(self, fcPath):
     result = arcpy.GetCount_management(fcPath)
     return int(result.getOutput(0))
+
+  ###
+  # Get the full path of a network datasource's edge source (the first source).
+  # @param networkDataset A network dataset.
+  ###
+  def getEdgeSourcePath(self, networkDataset):
+    ndDesc = arcpy.Describe(networkDataset)
+    return os.path.join(ndDesc.path, ndDesc.edgeSources[0].name)
+
+  ###
+  # Get the number of edge sources in a network dataset.
+  # @param networkDataset A network dataset.
+  ###
+  def getNumEdgeSources(self, networkDataset):
+    ndDesc      = arcpy.Describe(networkDataset)
+    edgeSources = ndDesc.edgeSources
+    return len(edgeSources)
+
+  ###
+  # Get an array of field names from a network dataset's first edge source.
+  # Only numeric fields are considered.
+  # @param networkDataset A network dataset.
+  ###
+  def getEdgeSourceFieldNames(self, networkDataset):
+    esFullPath  = self.getEdgeSourcePath(networkDataset)
+    esDesc      = arcpy.Describe(esFullPath)
+    fieldsNames = []
+
+    for field in esDesc.fields:
+      if field.type == "Integer" or field.type == "SmallInteger" or field.type == "Double" or field.type == "Single":
+        fieldsNames.append(field.name)
+
+    return fieldsNames

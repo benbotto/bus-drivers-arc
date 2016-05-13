@@ -120,9 +120,17 @@ class RandomODCMPermutations(object):
       datatype="GPSpatialReference",
       parameterType="Optional",
       direction="Input")
+
+    # Number of points field.
+    numPointsFieldName = arcpy.Parameter(
+      displayName="Number of Points Field",
+      name = "num_points_field",
+      datatype="GPString",
+      parameterType="Optional",
+      direction="Input")
    
     return [analysisType, srcPoints, destPoints, networkDataset, snapDist,
-      cutoff, outLoc, outFC, numPerms, outCoordSys]
+      cutoff, outLoc, outFC, numPerms, outCoordSys, numPointsFieldName]
 
   ###
   # Check if the tool is available for use.
@@ -158,6 +166,10 @@ class RandomODCMPermutations(object):
         parameters[2].enabled = False
         parameters[2].value = parameters[1].valueAsText
 
+    # Set the source of the fields (the network dataset).
+    if networkDataset is not None:
+      parameters[10].filter.list = self.kfHelper.getEdgeSourceFieldNames(networkDataset)
+
   ###
   # If any fields are invalid, show an appropriate error message.
   ###
@@ -176,17 +188,18 @@ class RandomODCMPermutations(object):
   # Execute the tool.
   ###
   def execute(self, parameters, messages):
-    analysisType   = self.kfHelper.getAnalysisTypeSelection()[parameters[0].valueAsText]
-    srcPoints      = parameters[1].valueAsText
-    destPoints     = parameters[2].valueAsText
-    networkDataset = parameters[3].valueAsText
-    snapDist       = parameters[4].value
-    cutoff         = parameters[5].value
-    outLoc         = parameters[6].valueAsText
-    outFC          = parameters[7].valueAsText
-    numPerms       = self.kfHelper.getPermutationSelection()[parameters[8].valueAsText]
-    outCoordSys    = parameters[9].value
-    ndDesc         = arcpy.Describe(networkDataset)
+    analysisType       = self.kfHelper.getAnalysisTypeSelection()[parameters[0].valueAsText]
+    srcPoints          = parameters[1].valueAsText
+    destPoints         = parameters[2].valueAsText
+    networkDataset     = parameters[3].valueAsText
+    snapDist           = parameters[4].value
+    cutoff             = parameters[5].value
+    outLoc             = parameters[6].valueAsText
+    outFC              = parameters[7].valueAsText
+    numPerms           = self.kfHelper.getPermutationSelection()[parameters[8].valueAsText]
+    outCoordSys        = parameters[9].value
+    numPointsFieldName = parameters[10].value
+    ndDesc             = arcpy.Describe(networkDataset)
 
     # Refer to the note in the NetworkDatasetLength tool.
     if outCoordSys is None:
@@ -201,9 +214,11 @@ class RandomODCMPermutations(object):
     messages.addMessage("Path to output feature class: {0}".format(outLoc))
     messages.addMessage("Output feature class name: {0}".format(outFC))
     messages.addMessage("Number of random permutations: {0}".format(numPerms))
-    messages.addMessage("Network dataset length projected coordinate system: {0}\n".format(outCoordSys.name))
+    messages.addMessage("Network dataset length projected coordinate system: {0}".format(outCoordSys.name))
+    messages.addMessage("Number of Points Field Name: {0}\n".format(numPointsFieldName))
 
     # The actual work is done in a reusable service.
     randODCMPermSvc = RandomODCMPermutationsSvc()
     randODCMPermSvc.generateODCMPermutations(analysisType, srcPoints, destPoints,
-      networkDataset, snapDist, cutoff, outLoc, outFC, numPerms, outCoordSys, messages)
+      networkDataset, snapDist, cutoff, outLoc, outFC, numPerms, outCoordSys,
+      numPointsFieldName, messages)

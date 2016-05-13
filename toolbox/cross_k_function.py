@@ -148,10 +148,18 @@ class CrossKFunction(object):
       datatype="GPSpatialReference",
       parameterType="Optional",
       direction="Input")
+
+    # Number of points field.
+    numPointsFieldName = arcpy.Parameter(
+      displayName="Number of Points Field",
+      name = "num_points_field",
+      datatype="GPString",
+      parameterType="Optional",
+      direction="Input")
    
     return [srcPoints, destPoints, networkDataset, numBands, begDist, distInc,
       snapDist, outNetKLoc, outRawODCMFCName, outRawFCName, outAnlFCName,
-      numPerms, outCoordSys]
+      numPerms, outCoordSys, numPointsFieldName]
 
   ###
   # Check if the tool is available for use.
@@ -177,6 +185,10 @@ class CrossKFunction(object):
         ndDesc.spatialReference.factoryCode != 0):
         parameters[12].value = ndDesc.spatialReference.factoryCode
 
+    # Set the source of the fields (the network dataset).
+    if networkDataset is not None:
+      parameters[13].filter.list = self.kfHelper.getEdgeSourceFieldNames(networkDataset)
+
   ###
   # If any fields are invalid, show an appropriate error message.
   ###
@@ -195,21 +207,22 @@ class CrossKFunction(object):
   # Execute the tool.
   ###
   def execute(self, parameters, messages):
-    srcPoints        = parameters[0].valueAsText
-    destPoints       = parameters[1].valueAsText
-    networkDataset   = parameters[2].valueAsText
-    numBands         = parameters[3].value
-    begDist          = parameters[4].value
-    distInc          = parameters[5].value
-    snapDist         = parameters[6].value
-    outNetKLoc       = parameters[7].valueAsText
-    outRawODCMFCName = parameters[8].valueAsText
-    outRawFCName     = parameters[9].valueAsText
-    outAnlFCName     = parameters[10].valueAsText
-    numPerms         = self.kfHelper.getPermutationSelection()[parameters[11].valueAsText]
-    outCoordSys      = parameters[12].value
-    ndDesc           = arcpy.Describe(networkDataset)
-    gkfSvc           = GlobalKFunctionSvc()
+    srcPoints          = parameters[0].valueAsText
+    destPoints         = parameters[1].valueAsText
+    networkDataset     = parameters[2].valueAsText
+    numBands           = parameters[3].value
+    begDist            = parameters[4].value
+    distInc            = parameters[5].value
+    snapDist           = parameters[6].value
+    outNetKLoc         = parameters[7].valueAsText
+    outRawODCMFCName   = parameters[8].valueAsText
+    outRawFCName       = parameters[9].valueAsText
+    outAnlFCName       = parameters[10].valueAsText
+    numPerms           = self.kfHelper.getPermutationSelection()[parameters[11].valueAsText]
+    outCoordSys        = parameters[12].value
+    numPointsFieldName = parameters[13].value
+    ndDesc             = arcpy.Describe(networkDataset)
+    gkfSvc             = GlobalKFunctionSvc()
 
     # Refer to the note in the NetworkDatasetLength tool.
     if outCoordSys is None:
@@ -227,7 +240,8 @@ class CrossKFunction(object):
     messages.addMessage("Raw cross-K data table (raw analysis data): {0}".format(outRawFCName))
     messages.addMessage("Cross-K summary data (plottable data): {0}".format(outAnlFCName))
     messages.addMessage("Number of random permutations: {0}".format(numPerms))
-    messages.addMessage("Network dataset length projected coordinate system: {0}\n".format(outCoordSys.name))
+    messages.addMessage("Network dataset length projected coordinate system: {0}".format(outCoordSys.name))
+    messages.addMessage("Number of Points Field Name: {0}\n".format(numPointsFieldName))
 
     # Calculate the length of the network.
     networkLength = self.kfHelper.calculateLength(networkDataset, outCoordSys)
@@ -262,7 +276,7 @@ class CrossKFunction(object):
     randODCMPermSvc = RandomODCMPermutationsSvc()
     randODCMPermSvc.generateODCMPermutations("Cross Analysis",
       srcPoints, destPoints, networkDataset, snapDist, cutoff, outNetKLoc,
-      outRawODCMFCName, numPerms, outCoordSys, messages, doNetKCalc)
+      outRawODCMFCName, numPerms, outCoordSys, numPointsFieldName, messages, doNetKCalc)
 
     # Store the raw analysis data.
     messages.addMessage("Writing raw analysis data.")
