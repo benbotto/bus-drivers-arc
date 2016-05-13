@@ -24,9 +24,22 @@ Also, Each of the tools support have documentation built into the xml metadata w
       * 10.3.x - http://www.arcgis.com/home/item.html?id=75716d933f1c40a784243198e0dc11a1 
 
 ## Additional Documentation
-* **Crash Analysis Toolbox - As Built Design:** Developer Maintenence Manual
-* **Crash Analysis Toolbox - Test Plan and Test Cases:** Tests Cases and Known Bugs/Issues
+* **(TO BE ADDED) - Crash Analysis Toolbox - As Built Design:** Developer Maintenence Manual 
 * **Crash Analysis Toolbox - User Manual:** User Manual
+
+## Developer Roadmap
+* **First Understand Dr. Khan's problem from a theoretical standpoint (take ArcGIS out of the equation)
+* **Learn Basics of ArcGIS (Check out Youtube Videos on)
+*      - What is the ArcGIS System, how is it used
+*      - What are the various data types in ArcGIS (geodatabases, feature classes, network layers)
+*      - How to add geographical data from a csv/excel file onto a map in ArcGIS
+*      - What are tools and toolboxes in ArcGIS
+*      - Understand what OpenStreetMap API is  
+*      - Program a simple tool in ArcMap
+*  **Become a user for the existing tools: 
+*      - Learn how to use the tools, Read the User Manual for the tools, CONSULT WITH DR. KHAN on why he uses the tools if anything becomes unclear.
+*      - Learn Git and how to setup a repository with the existing code. 
+*  **Study the existing code base and incrementally add features needed!
 
 ## Credits
 * **Project Sponsor**:  <br />
