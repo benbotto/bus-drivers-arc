@@ -1,4 +1,4 @@
-# bus-drivers-arc
+## Crash Analysis Toolbox
 The Crash Analysis Toolbox is a collection of python based ArcMap scripts, and tools for use in [ArcGIS for Desktop](http://www.esri.com/software/arcgis/arcgis-for-desktop) versions 10.2.x and above. These tools offer a more streamlined approach to analyzing traffic crash data, compared to ArcGIS’ model builder.  The tools are also modular, meaning that python tools can be removed or added to each project without much effort. 
 
 The primary user of the Hotspot Analysis Tool Suite is Dr. Ghazan Khan, an assistant professor of civil engineering, specializing in transportation engineering, at California State University, Sacramento.  Dr. Khan has expert-level knowledge of the ArcGIS platform, and he is a subject matter expert in the crash analysis field. Dr. Khan lectures about ArcGIS and road safety, and his civil engineering students may utilize the developed tools in their research (particularly graduate students).  All users of the Hotspot Analysis Tool Suite are expected to be proficient in ArcGIS.
