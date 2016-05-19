@@ -1,4 +1,4 @@
-Crash Analysis Toolbox
+Crash Analysis Toolbox v1.0
 ========================
 The Crash Analysis Toolbox is a collection of python based ArcMap scripts, and tools for use in ArcGIS for Desktop versions 10.2.x and above. 
 These tools offer a more streamlined approach to analyzing traffic crash data, compared to ArcGIS’ model builder. 
