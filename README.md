@@ -9,11 +9,14 @@ Each of the tools are located within their own python script (as well as helper 
 Also, Each of the tools support have documentation built into the xml metadata which show in the ArcMap User Interface "Item Descriptions".  To see them, go to the ArcCatalog, then right click on a python tool and select “Item Description”. A new window will open, describing the tool. These "self-documenting" item descriptions are maintained in the corresponding tools .xml file in the "toolbox" folder. These files can be edited in two ways, through the xml file or through the ArcCatalog UI (See Section 4 - Tools in the "As Built Design - Crash Analysis Toolbox"). 
 
 ## Features
-* The Crash Analysis toolbox has 4 major tools in the "toolbox" folder (refer to the As Built Design - Crash Analysis Toolbox document for details on each tool as they have background information of each tool as well as expected output):
+* The Crash Analysis toolbox has 7 major tools in the "toolbox" folder (refer to the User Manual or consult with Dr. Khan for details on each tool as they have background information of each tool as well as expected output):
   * **Crash Radius Density**
   * **Crash Network Density**
+  * **Create Random Points on a Network Dataset**
   * **Global K Functoin**
   * **Cross K Function**
+  * **Netowrk Dataset Length**
+  * **Random ODCM Permutations**
 
 ## Required Environment
 * ArcGIS Desktop 10.2+ 
@@ -24,7 +27,6 @@ Also, Each of the tools support have documentation built into the xml metadata w
       * 10.3.x - http://www.arcgis.com/home/item.html?id=75716d933f1c40a784243198e0dc11a1 
 
 ## Additional Documentation
-* **(TO BE ADDED) - Crash Analysis Toolbox - As Built Design:** Developer Maintenence Manual 
 * **Crash Analysis Toolbox - User Manual:** User Manual
 
 ## Developer Roadmap
@@ -40,6 +42,13 @@ Also, Each of the tools support have documentation built into the xml metadata w
        - Learn how to use the tools, Read the User Manual for the tools, CONSULT WITH DR. KHAN on why he uses the tools if anything becomes unclear.
        - Learn Git and how to setup a repository with the existing code. 
 * Study the existing code base and incrementally add features needed!
+
+
+## Code Structure
+* Each tool is contained into the Crash Analysis Toolbox
+     - Crash Analysis Toolbox.pyt - the python code that defines the tool box
+     - Crash Analysis Toolbox.Tool.pyt.xml - the xml file that contains the metadata + item descriptions of the toolbox.
+* Each tool is defined in their own <<toolname>>.pyt for the classes of the each tool, the <<toolname>>.xml for their metadata + item descriptions. Some of the tools have helper classes. 
 
 ## Credits
 * **Project Sponsor**:  <br />
